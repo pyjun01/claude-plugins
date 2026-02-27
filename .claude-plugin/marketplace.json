@@ -1,0 +1,12 @@
+{
+  "name": "claude-plugins",
+  "description": "A curated collection of Claude Code plugins",
+  "owner": {
+    "name": "pyjun01"
+  },
+  "metadata": {
+    "version": "0.1.0",
+    "pluginRoot": "./plugins"
+  },
+  "plugins": []
+}
