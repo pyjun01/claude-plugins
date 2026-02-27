@@ -8,5 +8,11 @@
     "version": "0.1.0",
     "pluginRoot": "./plugins"
   },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "improve-prompt-consistency",
+      "description": "Analyze and improve prompts using 9 research-backed consistency criteria",
+      "path": "./plugins/improve-prompt-consistency"
+    }
+  ]
 }

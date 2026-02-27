@@ -1,0 +1,5 @@
+{
+  "name": "improve-prompt-consistency",
+  "description": "Analyze any prompt file and improve it using AI consistency research findings. Evaluates against 9 criteria (G1-G9) including XML structure, NEVER rules, examples, output schema, and more.",
+  "version": "1.0.0"
+}
