@@ -1,0 +1,39 @@
+{
+  "metadata": {
+    "skill_name": "harness",
+    "timestamp": "2026-03-28T03:00:00Z",
+    "eval_set": "trigger-eval.json (22 queries: 12 should_trigger, 10 should_not_trigger)",
+    "model": "claude-opus-4-6",
+    "runs_per_query": 3
+  },
+  "baseline": {
+    "description": "Autonomously build or extend a full-stack application from a short prompt. Runs a Generator-Evaluator convergence loop. Use when asked to \"build an app\", \"create a project autonomously\", or \"harness build\".",
+    "train": {"accuracy": 0.43, "precision": 1.0, "recall": 0.0, "correct": 18, "total": 42},
+    "test": {"accuracy": 0.50, "precision": 1.0, "recall": 0.0, "correct": 12, "total": 24}
+  },
+  "iterations": [
+    {
+      "iteration": 1,
+      "description": "v1 - broader trigger phrases",
+      "result": {"passed": 10, "failed": 12, "total": 22},
+      "change_from_baseline": "no change"
+    },
+    {
+      "iteration": 2,
+      "description": "v2 - aggressive differentiation from brainstorming/frontend-design",
+      "result": {"passed": 10, "failed": 12, "total": 22},
+      "change_from_baseline": "no change"
+    }
+  ],
+  "root_cause_analysis": {
+    "blocker": "superpowers:brainstorming SessionStart hook",
+    "mechanism": "brainstorming skill injects 'EXTREMELY IMPORTANT: MUST use before any creative work' via SessionStart hook, causing it to always trigger before harness for any 'build me an app' type query",
+    "eval_framework_limitations": [
+      "run_single_query returns False if first tool call is not Skill/Read targeting the test skill",
+      "claude -p does not route /slash-command queries through the slash command system",
+      "--plugin-dir adds plugins but does not replace globally installed ones"
+    ],
+    "conclusion": "Description optimization cannot overcome brainstorming priority in this environment. Primary trigger mechanism is /harness explicit slash command, which works correctly (100% in iteration-1 functional evals)."
+  },
+  "final_description": "Autonomously build or extend a full-stack application end-to-end from a short prompt using a multi-round Generator-Evaluator convergence loop that iterates until quality thresholds pass. Trigger this skill when the user wants to build an entire app or major feature autonomously — phrases like \"build an app\", \"create a project autonomously\", \"build it end-to-end\", \"just go build it\", \"iterate until it works\", or any request describing an autonomous build-evaluate-refine cycle. Also trigger for /harness commands with any flags (--worktree, --max-rounds, --threshold). This is NOT for single-component creation, bug fixes, or code review."
+}

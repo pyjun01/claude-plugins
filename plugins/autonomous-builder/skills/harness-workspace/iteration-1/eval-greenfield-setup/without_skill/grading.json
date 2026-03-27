@@ -1,0 +1,55 @@
+{
+  "expectations": [
+    {
+      "text": "Setup command includes --prompt with the user's prompt text",
+      "passed": false,
+      "evidence": "result.md: No harness.js call at all. Agent described building a single index.html file directly."
+    },
+    {
+      "text": "A runId starting with 'run-' was extracted from harness.js JSON output",
+      "passed": false,
+      "evidence": "result.md: No runId extracted. harness.js was never called."
+    },
+    {
+      "text": "The 'Setup complete. Run: ...' message was reported to user",
+      "passed": false,
+      "evidence": "result.md: No 'Setup complete' message. Agent proposed asking clarifying questions instead."
+    },
+    {
+      "text": "Empty directory correctly identified as GREENFIELD",
+      "passed": false,
+      "evidence": "result.md: No GREENFIELD detection. Agent did not use harness.js context detection."
+    },
+    {
+      "text": "harness.js next was called with the correct --run-id flag",
+      "passed": false,
+      "evidence": "result.md: harness.js next was never called."
+    },
+    {
+      "text": "PLAN action keyword was received and parsed from next output",
+      "passed": false,
+      "evidence": "result.md: No PLAN action. No harness state machine involved."
+    },
+    {
+      "text": "planner.md reference file was selected and read",
+      "passed": false,
+      "evidence": "result.md: No reference file accessed. Agent worked from its own general knowledge."
+    },
+    {
+      "text": "runId was appended to the agent prompt",
+      "passed": false,
+      "evidence": "result.md: No runId. No agent prompt built."
+    },
+    {
+      "text": "planner.md content (Runtime Context section) was injected into the agent prompt",
+      "passed": false,
+      "evidence": "result.md: No Runtime Context injection. Agent used conversational response instead."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 9,
+    "total": 9,
+    "pass_rate": 0.0
+  }
+}

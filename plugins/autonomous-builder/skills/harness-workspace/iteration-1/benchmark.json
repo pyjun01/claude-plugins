@@ -1,0 +1,177 @@
+{
+  "metadata": {
+    "skill_name": "harness",
+    "skill_path": "/Users/mvldev16/Desktop/playground/personal-plugins/plugins/autonomous-builder/skills/harness",
+    "timestamp": "2026-03-27T16:20:00Z",
+    "evals_run": ["greenfield-setup", "flags-passing", "existing-project"],
+    "runs_per_configuration": 1
+  },
+  "runs": [
+    {
+      "eval_id": 0,
+      "eval_name": "Greenfield Setup",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 9,
+        "failed": 0,
+        "total": 9,
+        "time_seconds": 2.1,
+        "tokens": 28386,
+        "tool_calls": 8,
+        "errors": 0
+      },
+      "expectations": [
+        {"text": "Setup command includes --prompt with the user's prompt text", "passed": true, "evidence": "harness.js called with --prompt flag confirmed"},
+        {"text": "A runId starting with 'run-' was extracted from harness.js JSON output", "passed": true, "evidence": "runId run-20260327160939-b213 extracted"},
+        {"text": "The 'Setup complete. Run: ...' message was reported to user", "passed": true, "evidence": "Message confirmed in result.md"},
+        {"text": "Empty directory correctly identified as GREENFIELD", "passed": true, "evidence": "context=GREENFIELD in JSON output"},
+        {"text": "harness.js next was called with the correct --run-id flag", "passed": true, "evidence": "next --run-id command confirmed"},
+        {"text": "PLAN action keyword was received and parsed from next output", "passed": true, "evidence": "stdout: PLAN"},
+        {"text": "planner.md reference file was selected and read", "passed": true, "evidence": "references/planner.md read"},
+        {"text": "runId was appended to the agent prompt", "passed": true, "evidence": "Agent prompt ends with 'runId: run-20260327160939-b213'"},
+        {"text": "planner.md content (Runtime Context section) was injected into the agent prompt", "passed": true, "evidence": "'## Runtime Context' present in agent prompt"}
+      ]
+    },
+    {
+      "eval_id": 0,
+      "eval_name": "Greenfield Setup",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 9,
+        "total": 9,
+        "time_seconds": 38.0,
+        "tokens": 17993,
+        "tool_calls": 3,
+        "errors": 0
+      },
+      "expectations": [
+        {"text": "Setup command includes --prompt with the user's prompt text", "passed": false, "evidence": "No harness.js call. Agent proposed building index.html directly."},
+        {"text": "A runId starting with 'run-' was extracted from harness.js JSON output", "passed": false, "evidence": "No runId extracted."},
+        {"text": "The 'Setup complete. Run: ...' message was reported to user", "passed": false, "evidence": "No Setup complete message."},
+        {"text": "Empty directory correctly identified as GREENFIELD", "passed": false, "evidence": "No harness context detection."},
+        {"text": "harness.js next was called with the correct --run-id flag", "passed": false, "evidence": "harness.js next never called."},
+        {"text": "PLAN action keyword was received and parsed from next output", "passed": false, "evidence": "No PLAN action."},
+        {"text": "planner.md reference file was selected and read", "passed": false, "evidence": "No reference file accessed."},
+        {"text": "runId was appended to the agent prompt", "passed": false, "evidence": "No runId, no agent prompt built."},
+        {"text": "planner.md content (Runtime Context section) was injected into the agent prompt", "passed": false, "evidence": "No Runtime Context injection."}
+      ]
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "Flags Passing",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 1.8,
+        "tokens": 18341,
+        "tool_calls": 6,
+        "errors": 0
+      },
+      "expectations": [
+        {"text": "--max-rounds 2 was passed to harness.js setup", "passed": true, "evidence": "harness.json confirms config.maxRounds=2"},
+        {"text": "--threshold 6 was passed to harness.js setup", "passed": true, "evidence": "harness.json confirms config.scoreThreshold=6"},
+        {"text": "Setup complete message was reported", "passed": true, "evidence": "Setup complete message present"},
+        {"text": "harness.js next was called with --run-id", "passed": true, "evidence": "next --run-id confirmed"}
+      ]
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "Flags Passing",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 4,
+        "total": 4,
+        "time_seconds": 44.8,
+        "tokens": 18118,
+        "tool_calls": 3,
+        "errors": 0
+      },
+      "expectations": [
+        {"text": "--max-rounds 2 was passed to harness.js setup", "passed": false, "evidence": "Flags not recognized: 'have no defined semantics without the skill'"},
+        {"text": "--threshold 6 was passed to harness.js setup", "passed": false, "evidence": "Flags ignored, agent asked what they mean."},
+        {"text": "Setup complete message was reported", "passed": false, "evidence": "No Setup complete."},
+        {"text": "harness.js next was called with --run-id", "passed": false, "evidence": "No harness.js execution."}
+      ]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "Existing Project Detection",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 2.0,
+        "tokens": 28386,
+        "tool_calls": 8,
+        "errors": 0
+      },
+      "expectations": [
+        {"text": "package.json was detected, context set to EXISTING CODEBASE", "passed": true, "evidence": "JSON output: existingProject=true, context='EXISTING CODEBASE'"},
+        {"text": "Setup complete message reflects EXISTING CODEBASE mode", "passed": true, "evidence": "'Setup complete. Run: ..., Mode: EXISTING CODEBASE'"},
+        {"text": "harness.js next was called with --run-id", "passed": true, "evidence": "next --run-id confirmed"},
+        {"text": "planner.md reference file was read for the PLAN action", "passed": true, "evidence": "references/planner.md read"}
+      ]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "Existing Project Detection",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 4,
+        "total": 4,
+        "time_seconds": 44.9,
+        "tokens": 18130,
+        "tool_calls": 3,
+        "errors": 0
+      },
+      "expectations": [
+        {"text": "package.json was detected, context set to EXISTING CODEBASE", "passed": false, "evidence": "Agent read package.json conversationally but no harness context detection."},
+        {"text": "Setup complete message reflects EXISTING CODEBASE mode", "passed": false, "evidence": "No Setup complete message."},
+        {"text": "harness.js next was called with --run-id", "passed": false, "evidence": "No harness.js execution."},
+        {"text": "planner.md reference file was read for the PLAN action", "passed": false, "evidence": "No reference files accessed."}
+      ]
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {"mean": 1.0, "stddev": 0.0, "min": 1.0, "max": 1.0},
+      "time_seconds": {"mean": 2.0, "stddev": 0.2, "min": 1.8, "max": 2.1},
+      "tokens": {"mean": 25038, "stddev": 5200, "min": 18341, "max": 28386}
+    },
+    "without_skill": {
+      "pass_rate": {"mean": 0.0, "stddev": 0.0, "min": 0.0, "max": 0.0},
+      "time_seconds": {"mean": 42.6, "stddev": 3.8, "min": 38.0, "max": 44.9},
+      "tokens": {"mean": 18080, "stddev": 71, "min": 17993, "max": 18130}
+    },
+    "delta": {
+      "pass_rate": "+1.00",
+      "time_seconds": "-40.6",
+      "tokens": "+6958"
+    }
+  },
+  "notes": [
+    "100% pass rate with skill vs 0% without — skill provides complete orchestration contract",
+    "with_skill runs are much faster (2s vs 43s) because harness.js executes deterministically; without_skill spends time on clarifying questions",
+    "without_skill baseline correctly never calls harness.js — confirms skill is the exclusive trigger for 3-phase orchestration",
+    "All assertions pass cleanly; no flaky or non-discriminating assertions identified",
+    "Flags (--max-rounds, --threshold) completely ignored without skill — the SKILL.md argument-hint is essential for user discoverability"
+  ]
+}

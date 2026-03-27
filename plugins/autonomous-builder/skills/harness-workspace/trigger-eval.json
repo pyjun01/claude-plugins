@@ -1,0 +1,90 @@
+[
+  {
+    "query": "ok I have this idea for a browser-based DAW (digital audio workstation) with a timeline view, mixer, and basic synth. can you just build the whole thing autonomously? I don't want to micromanage every file",
+    "should_trigger": true
+  },
+  {
+    "query": "harness build me a kanban board app with drag-and-drop, user auth, and dark mode. use whatever stack you think is best",
+    "should_trigger": true
+  },
+  {
+    "query": "I need a full-stack app built from scratch — it's a recipe sharing platform where users can upload recipes with photos, rate them, and search by ingredient. just go build it and show me when it's done",
+    "should_trigger": true
+  },
+  {
+    "query": "take this existing Next.js project and autonomously add a real-time chat feature with websockets. build it, test it, iterate until it works properly",
+    "should_trigger": true
+  },
+  {
+    "query": "/harness --max-rounds 3 \"Build a markdown editor with live preview and vim keybindings\"",
+    "should_trigger": true
+  },
+  {
+    "query": "I want you to create a project autonomously — a personal finance tracker with expense categories, monthly charts, and CSV import. don't ask me questions, just build and evaluate until it's good",
+    "should_trigger": true
+  },
+  {
+    "query": "can you autonomously build a portfolio website for me? I'm a photographer, I want a clean gallery grid, lightbox view, and a contact form. iterate on it until the design is polished",
+    "should_trigger": true
+  },
+  {
+    "query": "build an app for me end-to-end: a pomodoro timer with task lists, stats dashboard, and notification sounds. use the generator-evaluator loop to refine it",
+    "should_trigger": true
+  },
+  {
+    "query": "이 프로젝트에 인증 기능을 자율적으로 추가해줘. 빌드하고 테스트해서 품질이 괜찮을 때까지 반복해",
+    "should_trigger": true
+  },
+  {
+    "query": "/harness --worktree \"Add a full admin dashboard with user management, analytics charts, and role-based access control to this existing Rails app\"",
+    "should_trigger": true
+  },
+  {
+    "query": "can you add a loading spinner to the submit button in src/components/LoginForm.tsx? it should show while the API call is in progress",
+    "should_trigger": false
+  },
+  {
+    "query": "I'm getting a TypeError: Cannot read properties of undefined when I click the save button. here's the stack trace — can you debug this?",
+    "should_trigger": false
+  },
+  {
+    "query": "review this PR for me: https://github.com/myorg/myapp/pull/142. check for security issues and code quality",
+    "should_trigger": false
+  },
+  {
+    "query": "refactor the UserService class to use dependency injection instead of static methods. keep the same public API",
+    "should_trigger": false
+  },
+  {
+    "query": "write unit tests for the calculateDiscount function in utils/pricing.ts. cover edge cases like zero quantity and negative prices",
+    "should_trigger": false
+  },
+  {
+    "query": "I need a quick script that reads a CSV file and outputs the top 10 rows sorted by the 'revenue' column. python is fine",
+    "should_trigger": false
+  },
+  {
+    "query": "help me set up a CI/CD pipeline with GitHub Actions for this monorepo. it should run tests, lint, and deploy to staging on merge to main",
+    "should_trigger": false
+  },
+  {
+    "query": "explain how the authentication middleware works in this codebase. I'm new to the project and trying to understand the flow",
+    "should_trigger": false
+  },
+  {
+    "query": "deploy this app to Fly.io. here's my fly.toml, I think the health check path is wrong because the deploy keeps failing",
+    "should_trigger": false
+  },
+  {
+    "query": "create a new React component called UserAvatar that takes a user object and renders their profile picture with a fallback to initials. make it match the existing design system",
+    "should_trigger": false
+  },
+  {
+    "query": "/harness --worktree \"Ride Live Sharing 기능 추가\"",
+    "should_trigger": true
+  },
+  {
+    "query": "/harness Slack과 integration이 가능한 Google Account 기반의 스크럼 도구 만들어줘",
+    "should_trigger": true
+  }
+]

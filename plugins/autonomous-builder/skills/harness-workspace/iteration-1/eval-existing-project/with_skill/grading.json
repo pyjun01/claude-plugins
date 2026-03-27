@@ -1,0 +1,30 @@
+{
+  "expectations": [
+    {
+      "text": "package.json was detected, context set to EXISTING CODEBASE",
+      "passed": true,
+      "evidence": "result.md: JSON output shows existingProject=true, context='EXISTING CODEBASE'. detectExistingProject() found package.json."
+    },
+    {
+      "text": "Setup complete message reflects EXISTING CODEBASE mode",
+      "passed": true,
+      "evidence": "result.md: 'Setup complete. Run: run-20260327161236-320d, Mode: EXISTING CODEBASE'"
+    },
+    {
+      "text": "harness.js next was called with --run-id",
+      "passed": true,
+      "evidence": "result.md: 'node .../harness.js next --run-id run-20260327161236-320d'"
+    },
+    {
+      "text": "planner.md reference file was read for the PLAN action",
+      "passed": true,
+      "evidence": "result.md: '.../skills/harness/references/planner.md' listed as reference file read"
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1.0
+  }
+}

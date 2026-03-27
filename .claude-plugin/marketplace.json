@@ -13,6 +13,11 @@
       "name": "improve-prompt-consistency",
       "description": "Analyze and improve prompts using 9 research-backed consistency criteria",
       "path": "./plugins/improve-prompt-consistency"
+    },
+    {
+      "name": "autonomous-builder",
+      "description": "Autonomously builds or extends full-stack applications via a Generator-Evaluator convergence loop. Works on both greenfield and existing codebases.",
+      "path": "./plugins/autonomous-builder"
     }
   ]
 }

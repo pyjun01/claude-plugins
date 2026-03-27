@@ -1,0 +1,30 @@
+{
+  "expectations": [
+    {
+      "text": "--max-rounds 2 was passed to harness.js setup",
+      "passed": true,
+      "evidence": "result.md: setup command includes '--max-rounds 2'. Verified in harness.json: config.maxRounds=2"
+    },
+    {
+      "text": "--threshold 6 was passed to harness.js setup",
+      "passed": true,
+      "evidence": "result.md: setup command includes '--threshold 6'. Verified in harness.json: config.scoreThreshold=6"
+    },
+    {
+      "text": "Setup complete message was reported",
+      "passed": true,
+      "evidence": "result.md: 'Setup complete. Run: run-20260327161235-1dff, Mode: GREENFIELD'"
+    },
+    {
+      "text": "harness.js next was called with --run-id",
+      "passed": true,
+      "evidence": "result.md: 'node .../harness.js next --run-id run-20260327161235-1dff'"
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1.0
+  }
+}

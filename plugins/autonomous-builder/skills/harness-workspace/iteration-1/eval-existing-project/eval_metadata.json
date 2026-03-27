@@ -1,0 +1,11 @@
+{
+  "eval_id": 2,
+  "eval_name": "existing-project",
+  "prompt": "/harness \"Add dark mode to this app\"",
+  "assertions": [
+    "package.json was detected, context set to EXISTING CODEBASE",
+    "Setup complete message reflects EXISTING CODEBASE mode",
+    "harness.js next was called with --run-id",
+    "planner.md reference file was read for the PLAN action"
+  ]
+}
