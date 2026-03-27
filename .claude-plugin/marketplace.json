@@ -1,5 +1,5 @@
 {
-  "name": "claude-plugins",
+  "name": "pyjun-plugins",
   "description": "A curated collection of Claude Code plugins",
   "owner": {
     "name": "pyjun01"
