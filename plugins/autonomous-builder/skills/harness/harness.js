@@ -101,21 +101,22 @@ function detectServerConfig(appDir, port) {
 function waitForPort(port, timeoutMs) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
-    try {
-      execFileSync('node', ['-e', `
-        const http = require('http');
-        const req = http.get({host:'127.0.0.1',port:${port},timeout:1000}, (res) => {
-          process.exit(0);
-        });
-        req.on('error', () => process.exit(1));
-        req.on('timeout', () => { req.destroy(); process.exit(1); });
-      `], { timeout: 3000, stdio: 'pipe' });
-      return true;
-    } catch {
-      // Cross-platform sleep using Node.js Atomics
-      const buf = new SharedArrayBuffer(4);
-      Atomics.wait(new Int32Array(buf), 0, 0, 1000);
+    // Try both IPv4 and IPv6 loopback (Vite v8+ binds ::1 on macOS)
+    for (const host of ['127.0.0.1', '::1']) {
+      try {
+        execFileSync('node', ['-e', `
+          const http = require('http');
+          const req = http.get({host:'${host}',port:${port},timeout:1000}, () => {
+            process.exit(0);
+          });
+          req.on('error', () => process.exit(1));
+          req.on('timeout', () => { req.destroy(); process.exit(1); });
+        `], { timeout: 3000, stdio: 'pipe' });
+        return true;
+      } catch {}
     }
+    const buf = new SharedArrayBuffer(4);
+    Atomics.wait(new Int32Array(buf), 0, 0, 1000);
   }
   return false;
 }
@@ -182,6 +183,13 @@ function avgScore(scores) {
   return vals.reduce((a, b) => a + b, 0) / vals.length;
 }
 
+function validateScores(data) {
+  if (!data || typeof data !== 'object') return false;
+  if (!data.scores || typeof data.scores !== 'object') return false;
+  const required = ['product_depth', 'functionality', 'visual_design', 'code_quality'];
+  return required.every(k => typeof data.scores[k] === 'number');
+}
+
 function readScoreHistory(stateDir) {
   const p = path.join(stateDir, 'score-history.json');
   if (!fs.existsSync(p)) return [];
@@ -189,6 +197,10 @@ function readScoreHistory(stateDir) {
 }
 
 function appendScoreHistory(stateDir, entry) {
+  if (!validateScores(entry)) {
+    console.error(`WARNING: Invalid score entry rejected: ${JSON.stringify(entry).slice(0, 200)}`);
+    return readScoreHistory(stateDir);
+  }
   const history = readScoreHistory(stateDir);
   history.push(entry);
   fs.writeFileSync(path.join(stateDir, 'score-history.json'), JSON.stringify(history, null, 2));
@@ -223,7 +235,9 @@ function strategicDecision(currentScores, history, config) {
   if (allPassed) return 'DONE';
   if (history.length >= config.maxRounds) return 'STOP';
   if (history.length >= 2) {
-    const prev = avgScore(history[history.length - 2].scores);
+    const prevScores = history[history.length - 2].scores;
+    if (!prevScores) return 'REFINE';
+    const prev = avgScore(prevScores);
     const curr = avgScore(currentScores);
     return curr >= prev ? 'REFINE' : 'PIVOT';
   }
@@ -337,6 +351,19 @@ function cmdNext() {
   const state = readState(runId);
   const sd = statePath(runId);
 
+  // Concurrency guard: shadow writeState to detect concurrent modifications
+  const _snapPhase = state.phase;
+  const _snapRound = state.round;
+  const writeState = (s) => {
+    const current = readState(runId);
+    if (current.phase !== _snapPhase || current.round !== _snapRound) {
+      console.log(`FATAL: Concurrent modification detected (expected ${_snapPhase}/R${_snapRound}, found ${current.phase}/R${current.round})`);
+      process.exit(1);
+    }
+    const p = path.join(statePath(s.runId), 'harness.json');
+    fs.writeFileSync(p, JSON.stringify(s, null, 2));
+  };
+
   switch (state.phase) {
     case 'init': {
       state.phase = 'plan';
@@ -408,8 +435,14 @@ function cmdNext() {
         writeDefaultScores(state);
       }
 
-      const scoresData = JSON.parse(fs.readFileSync(
+      let scoresData = JSON.parse(fs.readFileSync(
         path.join(sd, `round-${state.round}`, 'scores.json'), 'utf-8'));
+      if (!validateScores(scoresData)) {
+        writeFeedback(state, `Evaluator wrote invalid scores.json. Received:\n\`\`\`json\n${JSON.stringify(scoresData, null, 2).slice(0, 300)}\n\`\`\`\nExpected: { round, timestamp, scores: { product_depth, functionality, visual_design, code_quality }, allPassed, summary }`);
+        writeDefaultScores(state);
+        scoresData = JSON.parse(fs.readFileSync(
+          path.join(sd, `round-${state.round}`, 'scores.json'), 'utf-8'));
+      }
       const history = appendScoreHistory(sd, scoresData);
       const decision = strategicDecision(scoresData.scores, history, state.config);
 
@@ -472,6 +505,10 @@ function cmdReport() {
 
   for (const h of history) {
     const s = h.scores;
+    if (!s) {
+      lines.push(`   R${h.round}: (invalid score data)`);
+      continue;
+    }
     const avg = avgScore(s).toFixed(2);
     lines.push(`   R${h.round}: depth=${s.product_depth} func=${s.functionality} design=${s.visual_design} code=${s.code_quality} (avg ${avg})`);
   }

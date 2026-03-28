@@ -39,8 +39,24 @@ Clean architecture? Obvious bugs?
 
 Write two files:
 
-- **`{stateDir}/round-{round}/scores.json`**: Read `$CLAUDE_PLUGIN_ROOT/skills/harness/references/scores-schema.md` for the exact schema.
-  Field names MUST match exactly — harness.js parses them by name.
+- **`{stateDir}/round-{round}/scores.json`**: Use this EXACT schema (harness.js parses these field names):
+
+```json
+{
+  "round": 1,
+  "timestamp": "2026-03-26T16:45:00Z",
+  "scores": {
+    "product_depth": 7,
+    "functionality": 5,
+    "visual_design": 8,
+    "code_quality": 7
+  },
+  "allPassed": false,
+  "summary": "One-line summary of evaluation results"
+}
+```
+
+  CRITICAL: The `scores` object MUST be nested inside a top-level object. Use snake_case field names exactly as shown. Do NOT use camelCase. Do NOT flatten the structure.
 - **`{stateDir}/round-{round}/feedback.md`**: Detailed findings for the generator to act on.
   Include per-criterion justification, specific bugs (file:line), and priority-ordered fix list.
 

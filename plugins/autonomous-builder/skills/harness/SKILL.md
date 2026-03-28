@@ -70,7 +70,10 @@ Repeat until done:
   3. Go to step 1
 
 NEVER override harness.js. NEVER read state files. NEVER interpret
-sub-agent responses. You are a switch statement, nothing more.
+sub-agent responses. NEVER use run_in_background for ANY harness.js
+Bash call — harness.js is a file-based state machine and concurrent
+calls corrupt state. ALL harness.js calls MUST be foreground.
+You are a switch statement, nothing more.
 
 ### Phase 3: Report
 
