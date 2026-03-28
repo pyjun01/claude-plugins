@@ -56,6 +56,11 @@ function detectExistingProject(dir) {
   return markers.some(m => fs.existsSync(path.join(dir, m)));
 }
 
+function needsServer(iface) {
+  if (!iface || iface.length === 0) return true; // default: assume server needed
+  return iface.some(i => i === 'browser' || i === 'http');
+}
+
 // ─── Server management ──────────────────────────────────────
 function detectServerConfig(appDir, port) {
   const resolved = path.resolve(appDir);
@@ -121,7 +126,12 @@ function waitForPort(port, timeoutMs) {
   return false;
 }
 
-function tryStartServer(state) {
+function tryStartApp(state) {
+  // CLI-only apps don't need a server
+  if (!needsServer(state.interface)) {
+    return { ok: true, pid: null };
+  }
+
   const sd = statePath(state.runId);
 
   // Prefer agent-written server command if available
@@ -400,7 +410,7 @@ function cmdNext() {
       const roundDir = path.join(sd, `round-${state.round}`);
       fs.mkdirSync(roundDir, { recursive: true });
 
-      const serverResult = tryStartServer(state);
+      const serverResult = tryStartApp(state);
       if (!serverResult.ok) {
         writeFeedback(state, `Server failed to start: ${serverResult.error}`);
         const history = readScoreHistory(sd);
