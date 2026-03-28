@@ -536,7 +536,8 @@ function cmdReport() {
       continue;
     }
     const avg = avgScore(s).toFixed(2);
-    lines.push(`   R${h.round}: depth=${s.product_depth} func=${s.functionality} design=${s.visual_design} code=${s.code_quality} (avg ${avg})`);
+    const parts = Object.entries(s).map(([k, v]) => `${k}=${v}`).join(' ');
+    lines.push(`   R${h.round}: ${parts} (avg ${avg})`);
   }
 
   if (lastEntry && lastEntry.summary) {
