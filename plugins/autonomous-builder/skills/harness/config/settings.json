@@ -1,7 +1,0 @@
-{
-  "maxRounds": 5,
-  "scoreThreshold": 7,
-  "serverStartCommand": "npm run dev",
-  "serverPort": 5173,
-  "serverReadyTimeout": 30000
-}
