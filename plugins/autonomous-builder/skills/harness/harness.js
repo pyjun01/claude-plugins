@@ -555,19 +555,29 @@ function cmdReport() {
   console.log(lines.join('\n'));
 }
 
-// ─── Main ───────────────────────────────────────────────────
-switch (command) {
-  case 'setup':
-    cmdSetup();
-    break;
-  case 'next':
-    cmdNext();
-    break;
-  case 'report':
-    cmdReport();
-    break;
-  default:
-    console.error(`Unknown command: ${command}`);
-    console.error('Usage: harness.js <setup|next|report> [options]');
-    process.exit(1);
+// ─── Main / Exports ────────────────────────────────────────
+if (require.main === module) {
+  switch (command) {
+    case 'setup':
+      cmdSetup();
+      break;
+    case 'next':
+      cmdNext();
+      break;
+    case 'report':
+      cmdReport();
+      break;
+    default:
+      console.error(`Unknown command: ${command}`);
+      console.error('Usage: harness.js <setup|next|report> [options]');
+      process.exit(1);
+  }
+} else {
+  module.exports = {
+    needsServer,
+    scoreCriteria,
+    avgScore,
+    validateScores,
+    strategicDecision,
+  };
 }
