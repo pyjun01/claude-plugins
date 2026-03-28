@@ -1,13 +1,21 @@
-# Claude Plugins
+# pyjun-plugins
 
 A curated collection of Claude Code plugins.
+
+## Plugins
+
+| Name | Description | Version |
+|------|-------------|---------|
+| [autonomous-builder](./plugins/autonomous-builder) | Autonomously builds or extends full-stack applications via a Generator-Evaluator convergence loop | 1.0.1 |
+| [improve-prompt-consistency](./plugins/improve-prompt-consistency) | Analyze and improve prompts using 9 research-backed consistency criteria | 1.0.0 |
+| [debug-tool](./plugins/debug-tool) | Help Claude Code debugging | 1.0.0 |
 
 ## Installation
 
 Add this marketplace to your Claude Code:
 
 ```
-/plugin marketplace add pyjun01/claude-plugins
+/plugin marketplace add pyjun01/pyjun-plugins
 ```
 
 Then browse and install individual plugins from this collection.
@@ -26,7 +34,7 @@ Add an entry to the `plugins` array in `.claude-plugin/marketplace.json`:
 {
   "name": "your-plugin-name",
   "description": "Short description of what the plugin does",
-  "path": "./plugins/your-plugin-name"
+  "source": "./plugins/your-plugin-name"
 }
 ```
 

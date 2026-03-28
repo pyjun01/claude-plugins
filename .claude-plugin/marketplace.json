@@ -10,16 +10,22 @@
   },
   "plugins": [
     {
+      "name": "autonomous-builder",
+      "description": "Autonomously builds or extends full-stack applications via a Generator-Evaluator convergence loop. Works on both greenfield and existing codebases.",
+      "source": "./plugins/autonomous-builder",
+      "version": "1.0.1"
+    },
+    {
       "name": "improve-prompt-consistency",
       "description": "Analyze and improve prompts using 9 research-backed consistency criteria",
       "source": "./plugins/improve-prompt-consistency",
       "version": "1.0.0"
     },
     {
-      "name": "autonomous-builder",
-      "description": "Autonomously builds or extends full-stack applications via a Generator-Evaluator convergence loop. Works on both greenfield and existing codebases.",
-      "source": "./plugins/autonomous-builder",
-      "version": "1.0.1"
+      "name": "debug-tool",
+      "description": "Help Claude Code debugging.",
+      "source": "./plugins/debug-tool",
+      "version": "1.0.0"
     }
   ]
 }

@@ -1,0 +1,9 @@
+{
+  "name": "debug-tool",
+  "description": "Help Claude Code debugging.",
+  "version": "1.0.0",
+  "author": {
+    "name": "pyjun01",
+    "email": "pyjun02@gmail.com"
+  }
+}
