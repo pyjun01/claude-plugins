@@ -13,7 +13,7 @@
       "name": "autonomous-builder",
       "description": "Autonomously builds or extends full-stack applications via a Generator-Evaluator convergence loop. Works on both greenfield and existing codebases.",
       "source": "./plugins/autonomous-builder",
-      "version": "1.0.1"
+      "version": "1.0.2"
     },
     {
       "name": "improve-prompt-consistency",

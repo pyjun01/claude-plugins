@@ -30,7 +30,23 @@ Your prompt includes a context flag:
 
 ## Output
 
-Write the complete spec to `{stateDir}/spec.md`:
+Write the complete spec to `{stateDir}/spec.md`.
+
+The spec MUST start with a `ui:` declaration on the first line, listing all user-facing
+interface types the product requires. Use a JSON-style array:
+
+```
+ui: [web, terminal]
+```
+
+Valid values (use as many as needed):
+- `web` — browser-based UI
+- `terminal` — CLI or TUI
+- `mobile` — native mobile app
+- `chat` — Slack, Telegram, Discord, etc.
+- `api` — headless API only (no user-facing UI)
+
+Then include:
 - Product overview and target audience
 - Feature list with user stories
 - Visual design language

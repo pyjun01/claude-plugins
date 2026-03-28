@@ -291,6 +291,10 @@ function cmdSetup() {
     }
   }
 
+  // Parse --ui override (comma-separated, e.g. --ui web,terminal)
+  const uiFlag = getFlag('ui');
+  const ui = uiFlag ? uiFlag.split(',').map(s => s.trim()) : null;
+
   // Write initial state
   const state = {
     runId,
@@ -301,6 +305,7 @@ function cmdSetup() {
     phase: 'init',
     round: 0,
     strategy: null,
+    ui,
     startedAt: new Date().toISOString(),
     appDir: path.relative(process.cwd(), appDir) || '.',
     stateDir: path.relative(process.cwd(), stateDir),
@@ -345,11 +350,22 @@ function cmdNext() {
         console.log('FATAL: Planner did not produce spec.md');
         break;
       }
+      // Parse ui from spec.md if not already set via --ui flag
+      if (!state.ui) {
+        const spec = fs.readFileSync(path.join(sd, 'spec.md'), 'utf-8');
+        const uiMatch = spec.match(/^ui:\s*\[([^\]]+)\]/m);
+        if (uiMatch) {
+          state.ui = uiMatch[1].split(',').map(s => s.trim().replace(/['"]/g, ''));
+        } else {
+          state.ui = [];
+        }
+      }
       state.phase = 'build';
       state.round = 1;
       state.strategy = 'initial';
       writeState(state);
-      console.log(`BUILD round=1 strategy=initial context=${state.context}`);
+      const uiStr = (state.ui && state.ui.length > 0) ? state.ui.join(',') : 'none';
+      console.log(`BUILD round=1 strategy=initial context=${state.context} ui=${uiStr}`);
       break;
     }
 
@@ -370,7 +386,8 @@ function cmdNext() {
         state.round++;
         state.strategy = 'REFINE';
         writeState(state);
-        console.log(`BUILD round=${state.round} strategy=REFINE context=${state.context}`);
+        const uiStrRetry = (state.ui && state.ui.length > 0) ? state.ui.join(',') : 'none';
+        console.log(`BUILD round=${state.round} strategy=REFINE context=${state.context} ui=${uiStrRetry}`);
         break;
       }
 
@@ -407,7 +424,8 @@ function cmdNext() {
       state.round++;
       state.strategy = decision;
       writeState(state);
-      console.log(`BUILD round=${state.round} strategy=${decision} context=${state.context}`);
+      const uiStr2 = (state.ui && state.ui.length > 0) ? state.ui.join(',') : 'none';
+      console.log(`BUILD round=${state.round} strategy=${decision} context=${state.context} ui=${uiStr2}`);
       break;
     }
 
