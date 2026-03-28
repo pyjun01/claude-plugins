@@ -26,7 +26,11 @@ const CONFIG_PATH = path.join(PLUGIN_ROOT, 'config', 'settings.json');
 const STATE_ROOT = path.resolve('.autonomous-builder');
 
 function readConfig() {
-  return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
+  try {
+    return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
+  } catch {
+    return {};
+  }
 }
 
 function statePath(runId) {

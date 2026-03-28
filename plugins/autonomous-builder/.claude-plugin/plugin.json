@@ -1,7 +1,7 @@
 {
   "name": "autonomous-builder",
   "description": "Autonomously builds or extends full-stack applications via a Generator-Evaluator convergence loop. Works on both greenfield and existing codebases.",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "author": {
     "name": "pyjun01",
     "email": "pyjun02@gmail.com"

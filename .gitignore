@@ -1,4 +1,3 @@
 docs/
 plugins/**/harness-workspace
 plugins/**/evals
-plugins/**/config
