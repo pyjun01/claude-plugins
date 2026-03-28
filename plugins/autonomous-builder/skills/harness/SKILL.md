@@ -10,7 +10,7 @@ description: >
   describing an autonomous build-evaluate-refine cycle. Also trigger for
   /harness commands with any flags (--worktree, --max-rounds, --threshold).
   This is NOT for single-component creation, bug fixes, or code review.
-argument-hint: '[--worktree] [--max-rounds N] [--threshold N] [--ui web,terminal] "<prompt>"'
+argument-hint: '[--worktree] [--max-rounds N] [--threshold N] [--interface browser,cli,http] "<prompt>"'
 ---
 
 ## Usage
@@ -49,12 +49,12 @@ Repeat until done:
 
      "BUILD ..." (any variant)
        → Read `$CLAUDE_PLUGIN_ROOT/skills/harness/references/generator.md`
-       → Parse the `ui=` value from the action line
-       → If ui contains "web": invoke Skill("frontend-design:frontend-design"),
+       → Parse the `interface=` value from the action line
+       → If interface contains "browser": invoke Skill("frontend-design:frontend-design"),
          capture the loaded skill content as {frontendDesignContent}
        → Use Agent tool: general-purpose agent, model: opus
          prompt: {generator content}
-           + (if web) "\n\n## Frontend Design Guidelines\n\n" + {frontendDesignContent}
+           + (if browser) "\n\n## Frontend Design Guidelines\n\n" + {frontendDesignContent}
            + "\n\nrunId: {runId}"
        → Ignore the agent's response entirely
 
