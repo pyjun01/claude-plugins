@@ -305,9 +305,9 @@ function cmdSetup() {
     }
   }
 
-  // Parse --ui override (comma-separated, e.g. --ui web,terminal)
-  const uiFlag = getFlag('ui');
-  const ui = uiFlag ? uiFlag.split(',').map(s => s.trim()) : null;
+  // Parse --interface override (comma-separated, e.g. --interface browser,cli)
+  const interfaceFlag = getFlag('interface');
+  const iface = interfaceFlag ? interfaceFlag.split(',').map(s => s.trim()) : null;
 
   // Write initial state
   const state = {
@@ -319,7 +319,7 @@ function cmdSetup() {
     phase: 'init',
     round: 0,
     strategy: null,
-    ui,
+    interface: iface,
     startedAt: new Date().toISOString(),
     appDir: path.relative(process.cwd(), appDir) || '.',
     stateDir: path.relative(process.cwd(), stateDir),
@@ -377,22 +377,22 @@ function cmdNext() {
         console.log('FATAL: Planner did not produce spec.md');
         break;
       }
-      // Parse ui from spec.md if not already set via --ui flag
-      if (!state.ui) {
+      // Parse interface from spec.md if not already set via --interface flag
+      if (!state.interface) {
         const spec = fs.readFileSync(path.join(sd, 'spec.md'), 'utf-8');
-        const uiMatch = spec.match(/^ui:\s*\[([^\]]+)\]/m);
-        if (uiMatch) {
-          state.ui = uiMatch[1].split(',').map(s => s.trim().replace(/['"]/g, ''));
+        const ifaceMatch = spec.match(/^interface:\s*\[([^\]]+)\]/m);
+        if (ifaceMatch) {
+          state.interface = ifaceMatch[1].split(',').map(s => s.trim().replace(/['"]/g, ''));
         } else {
-          state.ui = [];
+          state.interface = [];
         }
       }
       state.phase = 'build';
       state.round = 1;
       state.strategy = 'initial';
       writeState(state);
-      const uiStr = (state.ui && state.ui.length > 0) ? state.ui.join(',') : 'none';
-      console.log(`BUILD round=1 strategy=initial context=${state.context} ui=${uiStr}`);
+      const ifaceStr = (state.interface && state.interface.length > 0) ? state.interface.join(',') : 'none';
+      console.log(`BUILD round=1 strategy=initial context=${state.context} interface=${ifaceStr}`);
       break;
     }
 
@@ -413,8 +413,8 @@ function cmdNext() {
         state.round++;
         state.strategy = 'REFINE';
         writeState(state);
-        const uiStrRetry = (state.ui && state.ui.length > 0) ? state.ui.join(',') : 'none';
-        console.log(`BUILD round=${state.round} strategy=REFINE context=${state.context} ui=${uiStrRetry}`);
+        const ifaceStrRetry = (state.interface && state.interface.length > 0) ? state.interface.join(',') : 'none';
+        console.log(`BUILD round=${state.round} strategy=REFINE context=${state.context} interface=${ifaceStrRetry}`);
         break;
       }
 
@@ -457,8 +457,8 @@ function cmdNext() {
       state.round++;
       state.strategy = decision;
       writeState(state);
-      const uiStr2 = (state.ui && state.ui.length > 0) ? state.ui.join(',') : 'none';
-      console.log(`BUILD round=${state.round} strategy=${decision} context=${state.context} ui=${uiStr2}`);
+      const ifaceStr2 = (state.interface && state.interface.length > 0) ? state.interface.join(',') : 'none';
+      console.log(`BUILD round=${state.round} strategy=${decision} context=${state.context} interface=${ifaceStr2}`);
       break;
     }
 
