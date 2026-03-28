@@ -37,7 +37,7 @@ Your prompt includes a context flag:
 ## Constraints
 
 - NEVER include implementation details, code snippets, file paths, or technology choices in the spec. The generator decides HOW.
-- NEVER omit the `ui:` declaration on the first line of spec.md. The harness parses this field.
+- NEVER omit the `interface:` declaration on the first line of spec.md. The harness parses this field.
 - NEVER ignore existing architecture when context is EXISTING CODEBASE — read key files before writing the spec.
 </constraints>
 
@@ -46,19 +46,17 @@ Your prompt includes a context flag:
 
 Write the complete spec to `{stateDir}/spec.md`.
 
-The spec MUST start with a `ui:` declaration on the first line, listing all user-facing
-interface types the product requires. Use a JSON-style array:
+The spec MUST start with an `interface:` declaration on the first line, listing all
+interaction interfaces the product requires for evaluation. Use a JSON-style array:
 
 ```
-ui: [web, terminal]
+interface: [browser, cli]
 ```
 
 Valid values (use as many as needed):
-- `web` — browser-based UI
-- `terminal` — CLI or TUI
-- `mobile` — native mobile app
-- `chat` — Slack, Telegram, Discord, etc.
-- `api` — headless API only (no user-facing UI)
+- `browser` — browser-based UI (web apps, PWAs, mobile-web)
+- `cli` — command-line interface, TUI, or shell tool
+- `http` — headless API, webhook, chat bot, or any HTTP endpoint without a browser UI
 
 Then include:
 - Product overview and target audience
@@ -71,7 +69,7 @@ Then include:
 
 <self-check>
 Before finishing, verify:
-1. Does spec.md start with `ui: [...]` on the first line?
+1. Does spec.md start with `interface: [...]` on the first line?
 2. Does every feature describe WHAT and WHY without specifying HOW?
 3. If EXISTING CODEBASE: did you read key files and include an architecture summary?
 </self-check>
