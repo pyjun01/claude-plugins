@@ -61,6 +61,18 @@ function needsServer(iface) {
   return iface.some(i => i === 'browser' || i === 'http');
 }
 
+function scoreCriteria(iface) {
+  const common = ['product_depth', 'functionality', 'code_quality'];
+  if (!iface || iface.length === 0 || iface.includes('browser')) {
+    return [...common, 'visual_design'];
+  }
+  if (iface.includes('cli')) {
+    return [...common, 'ux_design'];
+  }
+  // http or any other
+  return [...common, 'api_design'];
+}
+
 // ─── Server management ──────────────────────────────────────
 function detectServerConfig(appDir, port) {
   const resolved = path.resolve(appDir);
@@ -193,11 +205,10 @@ function avgScore(scores) {
   return vals.reduce((a, b) => a + b, 0) / vals.length;
 }
 
-function validateScores(data) {
+function validateScores(data, criteria) {
   if (!data || typeof data !== 'object') return false;
   if (!data.scores || typeof data.scores !== 'object') return false;
-  const required = ['product_depth', 'functionality', 'visual_design', 'code_quality'];
-  return required.every(k => typeof data.scores[k] === 'number');
+  return criteria.every(k => typeof data.scores[k] === 'number');
 }
 
 function readScoreHistory(stateDir) {
@@ -206,8 +217,8 @@ function readScoreHistory(stateDir) {
   return JSON.parse(fs.readFileSync(p, 'utf-8'));
 }
 
-function appendScoreHistory(stateDir, entry) {
-  if (!validateScores(entry)) {
+function appendScoreHistory(stateDir, entry, criteria) {
+  if (!validateScores(entry, criteria)) {
     console.error(`WARNING: Invalid score entry rejected: ${JSON.stringify(entry).slice(0, 200)}`);
     return readScoreHistory(stateDir);
   }
@@ -230,10 +241,13 @@ function writeFeedback(state, message) {
 function writeDefaultScores(state) {
   const roundDir = path.join(statePath(state.runId), `round-${state.round}`);
   fs.mkdirSync(roundDir, { recursive: true });
+  const criteria = scoreCriteria(state.interface);
+  const scoreObj = {};
+  criteria.forEach(k => { scoreObj[k] = 0; });
   const scores = {
     round: state.round,
     timestamp: new Date().toISOString(),
-    scores: { product_depth: 0, functionality: 0, visual_design: 0, code_quality: 0 },
+    scores: scoreObj,
     allPassed: false,
     summary: 'Default scores — evaluator did not produce results',
   };
@@ -431,7 +445,8 @@ function cmdNext() {
       state.phase = 'evaluate';
       state.serverPid = serverResult.pid;
       writeState(state);
-      console.log(`EVALUATE round=${state.round} port=${state.serverPort}`);
+      const ifaceStr = (state.interface && state.interface.length > 0) ? state.interface.join(',') : 'browser';
+      console.log(`EVALUATE round=${state.round} port=${state.serverPort} interface=${ifaceStr}`);
       break;
     }
 
@@ -447,13 +462,14 @@ function cmdNext() {
 
       let scoresData = JSON.parse(fs.readFileSync(
         path.join(sd, `round-${state.round}`, 'scores.json'), 'utf-8'));
-      if (!validateScores(scoresData)) {
-        writeFeedback(state, `Evaluator wrote invalid scores.json. Received:\n\`\`\`json\n${JSON.stringify(scoresData, null, 2).slice(0, 300)}\n\`\`\`\nExpected: { round, timestamp, scores: { product_depth, functionality, visual_design, code_quality }, allPassed, summary }`);
+      const criteria = scoreCriteria(state.interface);
+      if (!validateScores(scoresData, criteria)) {
+        writeFeedback(state, `Evaluator wrote invalid scores.json. Received:\n\`\`\`json\n${JSON.stringify(scoresData, null, 2).slice(0, 300)}\n\`\`\`\nExpected: { round, timestamp, scores: { ${criteria.join(', ')} }, allPassed, summary }`);
         writeDefaultScores(state);
         scoresData = JSON.parse(fs.readFileSync(
           path.join(sd, `round-${state.round}`, 'scores.json'), 'utf-8'));
       }
-      const history = appendScoreHistory(sd, scoresData);
+      const history = appendScoreHistory(sd, scoresData, criteria);
       const decision = strategicDecision(scoresData.scores, history, state.config);
 
       if (decision === 'DONE' || decision === 'STOP') {
