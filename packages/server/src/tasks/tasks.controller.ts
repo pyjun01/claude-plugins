@@ -11,6 +11,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { TasksService } from './tasks.service';
+import { CreateTaskDto, UpdateTaskDto } from './dto';
 import type { TaskFilter } from '@todo/shared';
 
 @Controller('tasks')
@@ -20,7 +21,7 @@ export class TasksController {
   /** Create a new task */
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() body: { title: string; priority?: string }) {
+  create(@Body() body: CreateTaskDto) {
     return this.tasksService.create(body.title, body.priority);
   }
 
@@ -53,7 +54,7 @@ export class TasksController {
 
   /** Update task title/priority */
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: { title?: string; priority?: string }) {
+  update(@Param('id') id: string, @Body() body: UpdateTaskDto) {
     return this.tasksService.update(id, body.title, body.priority);
   }
 

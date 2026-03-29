@@ -17,11 +17,14 @@ export class TasksService {
   }
 
   /** Validate task title */
-  private validateTitle(title: string | undefined, required: boolean): string | undefined {
+  private validateTitle(title: unknown, required: boolean): string | undefined {
     if (required && (title === undefined || title === null)) {
       throw new BadRequestException('Title must not be empty');
     }
-    if (title !== undefined) {
+    if (title !== undefined && title !== null) {
+      if (typeof title !== 'string') {
+        throw new BadRequestException('Title must not be empty');
+      }
       const trimmed = title.trim();
       if (trimmed.length === 0) {
         throw new BadRequestException('Title must not be empty');
