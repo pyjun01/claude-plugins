@@ -1,0 +1,14 @@
+{
+  "name": "todo-app",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["@nestjs/core", "esbuild"]
+  }
+}
