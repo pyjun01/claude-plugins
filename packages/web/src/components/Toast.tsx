@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface ToastProps {
   message: string;
@@ -9,16 +9,18 @@ interface ToastProps {
 
 export function Toast({ message, action, duration = 3000, onDismiss }: ToastProps) {
   const [visible, setVisible] = useState(false);
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
 
   useEffect(() => {
     // Trigger entrance animation
     requestAnimationFrame(() => setVisible(true));
     const timer = setTimeout(() => {
       setVisible(false);
-      setTimeout(onDismiss, 200);
+      setTimeout(() => onDismissRef.current(), 200);
     }, duration);
     return () => clearTimeout(timer);
-  }, [duration, onDismiss]);
+  }, [duration]);
 
   return (
     <div
