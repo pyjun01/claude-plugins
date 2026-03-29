@@ -1,3 +1,6 @@
 docs/
 plugins/**/harness-workspace
 plugins/**/evals
+node_modules/
+dist/
+.autonomous-builder/
