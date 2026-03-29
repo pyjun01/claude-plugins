@@ -97,6 +97,23 @@ You will be graded on (criteria vary by target's eval tool):
 - **REFINE**: Fix specific issues from feedback. Keep what works.
 - **PIVOT**: Rethink fundamentally. Different architecture or design.
 
+## REFINE Discipline: Root-Cause First
+
+When strategy is REFINE, follow this discipline for each bug in feedback:
+
+1. **Reproduce**: Find the exact error. Read `{stateDir}/{target}-stderr.log`
+   and grep for the endpoint/component mentioned in feedback.
+2. **Trace**: Follow the error to its origin. A 500 error in the API might
+   originate from a missing DB migration, not the controller.
+3. **Fix the cause, not the symptom**:
+   - ❌ Adding try-catch around a crash (hides the real bug)
+   - ❌ Adding null check for data that should never be null (masks data flow issue)
+   - ✅ Fixing the query that returns wrong data
+   - ✅ Adding the missing field to the response serializer
+
+3-strike rule: If you've attempted the same fix pattern twice and the evaluator
+reports the same issue again, try a fundamentally different approach on the third attempt.
+
 ## Feedback Broadcast
 
 On REFINE/PIVOT rounds, read ALL feedback files in `{stateDir}/round-{round-1}/`:
@@ -116,6 +133,11 @@ is not your responsibility, skip it.
 - NEVER leave broken imports or undefined references in committed code. `npm run build` may pass with `any` casts or loose tsconfig, but the evaluator tests the live app — runtime import errors crash the entire target.
 - NEVER modify `packages/shared/types.ts` if you are a client target. The server target owns this file (directly for TS servers, via OpenAPI codegen for non-TS servers). If client and server both write to it, concurrent builds create merge conflicts and type divergence.
 - NEVER place a non-TypeScript server inside the `packages/` monorepo. Gradle/pip/go mod projects break pnpm workspace resolution. Use `server/` at the app root instead.
+- NEVER run rm -rf, DROP TABLE, or other destructive commands.
+- NEVER edit files outside {appDir} — your workspace is scoped.
+- NEVER install global packages (npm install -g) — use npx or local installs.
+- NEVER commit secrets, API keys, or credentials — use environment variables.
+- NEVER disable security features (CORS, CSRF, auth) to "make it work" — fix the actual integration issue instead.
 </constraints>
 
 <workflow>
@@ -125,15 +147,23 @@ is not your responsibility, skip it.
 2. If strategy is REFINE or PIVOT, read ALL feedback files at `{stateDir}/round-{round-1}/feedback-*.md`
 3. If you are a client target, read `packages/shared/types.ts` AND `contracts/openapi.yaml` (if it exists) for the API contract. On REFINE/PIVOT rounds, ALWAYS re-read both files — the server generator may have changed response shapes, HTTP methods, or URLs since last round. Compare the OpenAPI methods (GET/POST/PUT/DELETE) against your fetch calls and update any mismatches.
 4. If your target's eval is `playwright`, invoke Skill("frontend-design:frontend-design") and follow its design guidelines throughout implementation
-5. Implement or fix code in `{appDir}` (your target's package directory)
-6. Write (or overwrite) `{stateDir}/server-command-{target}.txt` with YOUR target's dev server command:
+5. Read the `design_system` section from `{stateDir}/spec.md`. Apply tokens directly:
+   - Use exact hex colors from the spec — do not pick your own palette
+   - Use the typography scale — do not invent font sizes
+   - Use the spacing scale — derive all padding/margin/gap from scale values
+   - Use the border radius and shadow values as specified
+   For web targets: create a CSS variables file or Tailwind theme extension from design tokens
+   at project setup. Reference variables throughout, never hardcode values.
+   For mobile targets: create a theme constants file from design tokens.
+6. Implement or fix code in `{appDir}` (your target's package directory)
+7. Write (or overwrite) `{stateDir}/server-command-{target}.txt` with YOUR target's dev server command:
    — single line, e.g. `pnpm --filter server dev -- --port 3001`
    — use the port number from your target's config in harness.json
    — if your target has port: null (cli), skip this step
    The harness reads per-target command files to start each process independently.
-7. Self-evaluate honestly against your target's criteria
-8. Write self-evaluation to `{stateDir}/round-{round}/self-eval-{target}.md`
-9. Git commit with descriptive messages
+8. Self-evaluate honestly against your target's criteria
+9. Write self-evaluation to `{stateDir}/round-{round}/self-eval-{target}.md`
+10. Git commit with descriptive messages
 </workflow>
 
 <team-protocol>
