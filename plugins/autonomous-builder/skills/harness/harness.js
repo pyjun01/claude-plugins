@@ -60,33 +60,130 @@ function detectExistingProject(dir) {
   return markers.some(m => fs.existsSync(path.join(dir, m)));
 }
 
-function needsServer(iface) {
-  if (!iface || iface.length === 0) return true; // default: assume server needed
-  return iface.some(i => i === 'browser' || i === 'http');
+// ─── Target defaults ────────────────────────────────────────
+const TARGET_DEFAULTS = {
+  web:    { type: 'client', port: 5173, eval: 'playwright' },
+  mobile: { type: 'client', port: 8081, eval: 'maestro' },
+  api:    { type: 'server', port: 3001, eval: 'curl' },
+  cli:    { type: 'client', port: null, eval: 'bash' },
+};
+
+/**
+ * Parse --targets flag into targets object.
+ *
+ * Formats:
+ *   "web"                         → { web: { type: client, port: 5173, eval: playwright } }
+ *   "api,web,mobile"              → { api: {...}, web: {...}, mobile: {...} }
+ *   "api:4000,web:3000"           → { api: {..., port: 4000}, web: {..., port: 3000} }
+ */
+function parseTargetsFlag(flag) {
+  if (!flag) return null;
+  const targets = {};
+  for (const part of flag.split(',')) {
+    const trimmed = part.trim();
+    const [name, portStr] = trimmed.split(':');
+    const defaults = TARGET_DEFAULTS[name];
+    if (!defaults) {
+      console.error(`WARNING: Unknown target "${name}", using client defaults`);
+      targets[name] = { type: 'client', port: parseInt(portStr) || 5173, eval: 'playwright', pid: null };
+      continue;
+    }
+    targets[name] = {
+      ...defaults,
+      port: portStr ? parseInt(portStr) : defaults.port,
+      pid: null,
+    };
+  }
+  return targets;
 }
 
-function scoreCriteria(iface) {
+/**
+ * Parse targets from spec.md.
+ *
+ * Expected format at top of spec:
+ *   targets:
+ *     api: { type: server, port: 3001 }
+ *     web: { type: client, port: 5173, eval: playwright }
+ *     mobile: { type: client, port: 8081, eval: maestro }
+ */
+function parseTargetsFromSpec(specContent) {
+  const targets = {};
+  const targetsMatch = specContent.match(/^targets:\s*\n((?:\s+\w+:.*\n?)+)/m);
+  if (!targetsMatch) return null;
+
+  const lines = targetsMatch[1].split('\n').filter(l => l.trim());
+  for (const line of lines) {
+    const lineMatch = line.match(/^\s+(\w+):\s*\{(.+)\}/);
+    if (!lineMatch) continue;
+    const name = lineMatch[1];
+    const props = lineMatch[2];
+
+    const defaults = TARGET_DEFAULTS[name] || { type: 'client', port: 5173, eval: 'playwright' };
+    const target = { ...defaults, pid: null };
+
+    const typeMatch = props.match(/type:\s*(\w+)/);
+    if (typeMatch) target.type = typeMatch[1];
+
+    const portMatch = props.match(/port:\s*(\d+)/);
+    if (portMatch) target.port = parseInt(portMatch[1]);
+
+    const evalMatch = props.match(/eval:\s*(\w+)/);
+    if (evalMatch) target.eval = evalMatch[1];
+
+    targets[name] = target;
+  }
+  return Object.keys(targets).length > 0 ? targets : null;
+}
+
+// ─── Target helpers ─────────────────────────────────────────
+
+/** Returns true if a target needs a dev process (has a port). */
+function targetNeedsProcess(target) {
+  return target.port !== null;
+}
+
+/** Returns sorted target names: server targets first, then client targets. */
+function sortedTargetNames(targets) {
+  const names = Object.keys(targets);
+  const servers = names.filter(n => targets[n].type === 'server');
+  const clients = names.filter(n => targets[n].type === 'client');
+  return [...servers, ...clients];
+}
+
+/** Returns scoring criteria for a given target based on its eval tool. */
+function scoreCriteria(target) {
   const common = ['product_depth', 'functionality', 'code_quality'];
-  if (!iface || iface.length === 0 || iface.includes('browser')) {
-    return [...common, 'visual_design'];
+  switch (target.eval) {
+    case 'playwright':
+      return [...common, 'visual_design'];
+    case 'maestro':
+      return [...common, 'visual_design', 'mobile_ux'];
+    case 'curl':
+      return [...common, 'api_design'];
+    case 'bash':
+      return [...common, 'ux_design'];
+    default:
+      return [...common, 'visual_design'];
   }
-  if (iface.includes('cli')) {
-    return [...common, 'ux_design'];
+}
+
+/** Returns all scoring criteria across all targets (flat, deduplicated). */
+function allCriteria(targets) {
+  const set = new Set();
+  for (const t of Object.values(targets)) {
+    for (const c of scoreCriteria(t)) set.add(c);
   }
-  // http or any other
-  return [...common, 'api_design'];
+  return [...set];
 }
 
 // ─── Server management ──────────────────────────────────────
 function detectServerConfig(appDir, port) {
   const resolved = path.resolve(appDir);
 
-  // If appDir doesn't exist, return a command that will fail gracefully
   if (!fs.existsSync(resolved)) {
     return { command: 'node', args: ['-e', `process.exit(1)`] };
   }
 
-  // Check package.json for dev/start scripts
   const pkgPath = path.join(resolved, 'package.json');
   if (fs.existsSync(pkgPath)) {
     try {
@@ -101,13 +198,11 @@ function detectServerConfig(appDir, port) {
     } catch {}
   }
 
-  // Python project
   const pyprojectPath = path.join(resolved, 'pyproject.toml');
   if (fs.existsSync(pyprojectPath)) {
     return { command: 'python3', args: ['-m', 'uvicorn', 'main:app', '--port', String(port)] };
   }
 
-  // Static HTML files at root
   try {
     const htmlFiles = fs.readdirSync(resolved).filter(f => f.endsWith('.html'));
     if (htmlFiles.length > 0) {
@@ -115,14 +210,12 @@ function detectServerConfig(appDir, port) {
     }
   } catch {}
 
-  // Fallback: npx serve
   return { command: 'npx', args: ['serve', '-l', String(port)] };
 }
 
 function waitForPort(port, timeoutMs) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
-    // Try both IPv4 and IPv6 loopback (Vite v8+ binds ::1 on macOS)
     for (const host of ['127.0.0.1', '::1']) {
       try {
         execFileSync('node', ['-e', `
@@ -142,65 +235,134 @@ function waitForPort(port, timeoutMs) {
   return false;
 }
 
-function tryStartApp(state) {
-  // CLI-only apps don't need a server
-  if (!needsServer(state.interface)) {
-    return { ok: true, pid: null };
-  }
-
+/**
+ * Start all target processes that need a port.
+ * Reads per-target server-command-{name}.txt files, falls back to auto-detection.
+ * Returns { ok, errors[] }.
+ */
+function tryStartTargets(state) {
   const sd = statePath(state.runId);
+  const errors = [];
 
-  // Prefer agent-written server command if available
-  const cmdFilePath = path.join(sd, 'server-command.txt');
-  let serverConfig;
-  if (fs.existsSync(cmdFilePath)) {
-    const raw = fs.readFileSync(cmdFilePath, 'utf-8').trim();
-    const parts = raw.split(/\s+/);
-    serverConfig = { command: parts[0], args: parts.slice(1) };
-  } else {
-    // Fallback to auto-detection
-    serverConfig = detectServerConfig(state.appDir, state.serverPort);
+  // Read per-target server command files
+  const serverCommands = {};
+  for (const name of Object.keys(state.targets)) {
+    const cmdFile = path.join(sd, `server-command-${name}.txt`);
+    if (fs.existsSync(cmdFile)) {
+      serverCommands[name] = fs.readFileSync(cmdFile, 'utf-8').trim();
+    }
   }
 
-  try {
-    const server = spawn(serverConfig.command, serverConfig.args, {
-      cwd: path.resolve(state.appDir),
-      stdio: ['ignore',
-        fs.openSync(path.join(sd, 'server-stdout.log'), 'w'),
-        fs.openSync(path.join(sd, 'server-stderr.log'), 'w')],
-      detached: true,
-    });
-    server.unref();
+  for (const [name, target] of Object.entries(state.targets)) {
+    if (!targetNeedsProcess(target)) continue;
 
-    // Write PID immediately
-    state.serverPid = server.pid;
-    writeState(state);
-
-    const ready = waitForPort(state.serverPort, state.config.serverReadyTimeout);
-    if (!ready) {
-      try { process.kill(-server.pid); } catch {}
-      const stderrLog = path.join(sd, 'server-stderr.log');
-      const stderr = fs.existsSync(stderrLog)
-        ? fs.readFileSync(stderrLog, 'utf-8').slice(0, 500)
-        : 'no stderr';
-      return { ok: false, error: `Server (${serverConfig.command} ${serverConfig.args.join(' ')}) did not respond on port ${state.serverPort} within ${state.config.serverReadyTimeout}ms. stderr: ${stderr}` };
+    let serverConfig;
+    let useShell = false;
+    if (serverCommands[name]) {
+      const raw = serverCommands[name].trim();
+      // Use shell execution if the command contains shell operators (cd, &&, ||, |, ;)
+      if (/\b(cd|&&|\|\||[|;])/.test(raw)) {
+        serverConfig = { command: raw, args: [] };
+        useShell = true;
+      } else {
+        const parts = raw.split(/\s+/);
+        serverConfig = { command: parts[0], args: parts.slice(1) };
+      }
+    } else {
+      serverConfig = detectServerConfig(state.appDir, target.port);
     }
 
-    return { ok: true, pid: server.pid };
-  } catch (e) {
-    return { ok: false, error: `Failed to start server (${serverConfig.command}): ${e.message}` };
+    try {
+      const server = spawn(serverConfig.command, serverConfig.args, {
+        cwd: path.resolve(state.appDir),
+        shell: useShell,
+        stdio: ['ignore',
+          fs.openSync(path.join(sd, `${name}-stdout.log`), 'w'),
+          fs.openSync(path.join(sd, `${name}-stderr.log`), 'w')],
+        detached: true,
+      });
+      server.unref();
+
+      state.targets[name].pid = server.pid;
+      writeState(state);
+
+      const ready = waitForPort(target.port, state.config.serverReadyTimeout);
+      if (!ready) {
+        try { process.kill(-server.pid); } catch {}
+        state.targets[name].pid = null;
+        const stderrLog = path.join(sd, `${name}-stderr.log`);
+        const stderr = fs.existsSync(stderrLog)
+          ? fs.readFileSync(stderrLog, 'utf-8').slice(0, 500)
+          : 'no stderr';
+        errors.push({ target: name, error: `${name} (${serverConfig.command} ${serverConfig.args.join(' ')}) did not respond on port ${target.port} within ${state.config.serverReadyTimeout}ms. stderr: ${stderr}` });
+      }
+    } catch (e) {
+      errors.push({ target: name, error: `Failed to start ${name} (${serverConfig.command}): ${e.message}` });
+    }
+  }
+
+  writeState(state);
+  return { ok: errors.length === 0, errors };
+}
+
+/** Check if a port is in use. */
+function isPortInUse(port) {
+  try {
+    execFileSync('node', ['-e', `
+      const http = require('http');
+      const req = http.get({host:'127.0.0.1',port:${port},timeout:500}, () => process.exit(0));
+      req.on('error', () => process.exit(1));
+      req.on('timeout', () => { req.destroy(); process.exit(1); });
+    `], { timeout: 2000, stdio: 'pipe' });
+    return true;
+  } catch {
+    return false;
   }
 }
 
-function stopServer(pid) {
-  if (!pid) return;
+/** Kill any process occupying a port (platform: macOS/Linux). */
+function killProcessOnPort(port) {
   try {
-    if (process.platform === 'win32') {
-      execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'pipe' });
-    } else {
-      process.kill(-pid, 'SIGTERM');
+    const pid = execFileSync('lsof', ['-ti', `:${port}`], { stdio: 'pipe' }).toString().trim();
+    if (pid) {
+      for (const p of pid.split('\n')) {
+        try { process.kill(parseInt(p), 'SIGKILL'); } catch {}
+      }
     }
   } catch {}
+}
+
+/** Kill all running target processes and wait for ports to be released. */
+function stopTargets(targets) {
+  // Send SIGTERM to all processes first
+  for (const [name, target] of Object.entries(targets)) {
+    if (!target.pid) continue;
+    try {
+      if (process.platform === 'win32') {
+        execFileSync('taskkill', ['/PID', String(target.pid), '/T', '/F'], { stdio: 'pipe' });
+      } else {
+        process.kill(-target.pid, 'SIGTERM');
+      }
+    } catch {}
+    target.pid = null;
+  }
+
+  // Wait for ports to be released, force-kill if stuck
+  for (const [name, target] of Object.entries(targets)) {
+    if (!target.port) continue;
+    const deadline = Date.now() + 5000;
+    while (Date.now() < deadline && isPortInUse(target.port)) {
+      const buf = new SharedArrayBuffer(4);
+      Atomics.wait(new Int32Array(buf), 0, 0, 500);
+    }
+    // If port is still in use after 5s, force kill
+    if (isPortInUse(target.port)) {
+      killProcessOnPort(target.port);
+      // Brief wait for SIGKILL to take effect
+      const buf = new SharedArrayBuffer(4);
+      Atomics.wait(new Int32Array(buf), 0, 0, 1000);
+    }
+  }
 }
 
 // ─── Score helpers ──────────────────────────────────────────
@@ -209,10 +371,30 @@ function avgScore(scores) {
   return vals.reduce((a, b) => a + b, 0) / vals.length;
 }
 
-function validateScores(data, criteria) {
+/** Compute average score across all targets' scores. */
+function avgScoreAllTargets(targetsScores) {
+  let sum = 0;
+  let count = 0;
+  for (const t of Object.values(targetsScores)) {
+    for (const v of Object.values(t.scores)) {
+      sum += v;
+      count++;
+    }
+  }
+  return count > 0 ? sum / count : 0;
+}
+
+/** Validate that scores data has the expected structure for all targets. */
+function validateTargetScores(data, targets) {
   if (!data || typeof data !== 'object') return false;
-  if (!data.scores || typeof data.scores !== 'object') return false;
-  return criteria.every(k => typeof data.scores[k] === 'number');
+  if (!data.targets || typeof data.targets !== 'object') return false;
+  for (const [name, target] of Object.entries(targets)) {
+    const targetData = data.targets[name];
+    if (!targetData || !targetData.scores || typeof targetData.scores !== 'object') return false;
+    const criteria = scoreCriteria(target);
+    if (!criteria.every(k => typeof targetData.scores[k] === 'number')) return false;
+  }
+  return true;
 }
 
 function readScoreHistory(stateDir) {
@@ -221,8 +403,8 @@ function readScoreHistory(stateDir) {
   return JSON.parse(fs.readFileSync(p, 'utf-8'));
 }
 
-function appendScoreHistory(stateDir, entry, criteria) {
-  if (!validateScores(entry, criteria)) {
+function appendScoreHistory(stateDir, entry, targets) {
+  if (!validateTargetScores(entry, targets)) {
     console.error(`WARNING: Invalid score entry rejected: ${JSON.stringify(entry).slice(0, 200)}`);
     return readScoreHistory(stateDir);
   }
@@ -232,10 +414,11 @@ function appendScoreHistory(stateDir, entry, criteria) {
   return history;
 }
 
-function writeFeedback(state, message) {
+function writeFeedback(state, targetName, message) {
   const roundDir = path.join(statePath(state.runId), `round-${state.round}`);
   fs.mkdirSync(roundDir, { recursive: true });
-  const feedbackPath = path.join(roundDir, 'feedback.md');
+  const filename = targetName ? `feedback-${targetName}.md` : 'feedback.md';
+  const feedbackPath = path.join(roundDir, filename);
   const existing = fs.existsSync(feedbackPath)
     ? fs.readFileSync(feedbackPath, 'utf-8') + '\n\n---\n\n'
     : '';
@@ -245,28 +428,43 @@ function writeFeedback(state, message) {
 function writeDefaultScores(state) {
   const roundDir = path.join(statePath(state.runId), `round-${state.round}`);
   fs.mkdirSync(roundDir, { recursive: true });
-  const criteria = scoreCriteria(state.interface);
-  const scoreObj = {};
-  criteria.forEach(k => { scoreObj[k] = 0; });
+  const targetsScores = {};
+  for (const [name, target] of Object.entries(state.targets)) {
+    const criteria = scoreCriteria(target);
+    const scoreObj = {};
+    criteria.forEach(k => { scoreObj[k] = 0; });
+    targetsScores[name] = { scores: scoreObj, summary: 'Default scores — evaluator did not produce results' };
+  }
   const scores = {
     round: state.round,
     timestamp: new Date().toISOString(),
-    scores: scoreObj,
+    targets: targetsScores,
     allPassed: false,
-    summary: 'Default scores — evaluator did not produce results',
   };
   fs.writeFileSync(path.join(roundDir, 'scores.json'), JSON.stringify(scores, null, 2));
 }
 
-function strategicDecision(currentScores, history, config) {
-  const allPassed = Object.values(currentScores).every(s => s >= config.scoreThreshold);
-  if (allPassed) return 'DONE';
+/**
+ * Check if all scores across all targets meet the threshold.
+ * Returns true only if every criterion in every target >= threshold.
+ */
+function allScoresPassed(targetsScores, threshold) {
+  for (const t of Object.values(targetsScores)) {
+    for (const v of Object.values(t.scores)) {
+      if (v < threshold) return false;
+    }
+  }
+  return true;
+}
+
+function strategicDecision(currentTargetsScores, history, config) {
+  if (allScoresPassed(currentTargetsScores, config.scoreThreshold)) return 'DONE';
   if (history.length >= config.maxRounds) return 'STOP';
   if (history.length >= 2) {
-    const prevScores = history[history.length - 2].scores;
-    if (!prevScores) return 'REFINE';
-    const prev = avgScore(prevScores);
-    const curr = avgScore(currentScores);
+    const prevEntry = history[history.length - 2];
+    if (!prevEntry.targets) return 'REFINE';
+    const prev = avgScoreAllTargets(prevEntry.targets);
+    const curr = avgScoreAllTargets(currentTargetsScores);
     return curr >= prev ? 'REFINE' : 'PIVOT';
   }
   return 'REFINE';
@@ -307,7 +505,6 @@ function cmdSetup() {
     appDir = worktreeDir;
   } else {
     appDir = process.cwd();
-    // Initialize git if needed
     if (!fs.existsSync(path.join(appDir, '.git'))) {
       execFileSync('git', ['init'], { cwd: appDir, stdio: 'pipe' });
     }
@@ -333,9 +530,9 @@ function cmdSetup() {
     }
   }
 
-  // Parse --interface override (comma-separated, e.g. --interface browser,cli)
-  const interfaceFlag = getFlag('interface');
-  const iface = interfaceFlag ? interfaceFlag.split(',').map(s => s.trim()) : null;
+  // Parse --targets flag
+  const targetsFlag = getFlag('targets');
+  const targets = parseTargetsFlag(targetsFlag);
 
   // Write initial state
   const state = {
@@ -347,17 +544,14 @@ function cmdSetup() {
     phase: 'init',
     round: 0,
     strategy: null,
-    interface: iface,
+    targets, // null if not specified — planner will define targets in spec.md
     startedAt: new Date().toISOString(),
     appDir: path.relative(process.cwd(), appDir) || '.',
     stateDir: path.relative(process.cwd(), stateDir),
-    serverPort: config.serverPort,
-    serverPid: null,
     config: {
       maxRounds,
       scoreThreshold: threshold,
-      serverStartCommand: config.serverStartCommand,
-      serverReadyTimeout: config.serverReadyTimeout,
+      serverReadyTimeout: config.serverReadyTimeout || 30000,
     },
   };
   writeState(state);
@@ -379,7 +573,7 @@ function cmdNext() {
   const state = readState(runId);
   const sd = statePath(runId);
 
-  // Concurrency guard: shadow writeState to detect concurrent modifications
+  // Concurrency guard
   const _snapPhase = state.phase;
   const _snapRound = state.round;
   const writeState = (s) => {
@@ -405,22 +599,27 @@ function cmdNext() {
         console.log('FATAL: Planner did not produce spec.md');
         break;
       }
-      // Parse interface from spec.md if not already set via --interface flag
-      if (!state.interface) {
+      // Parse targets from spec.md if not already set via --targets flag
+      if (!state.targets) {
         const spec = fs.readFileSync(path.join(sd, 'spec.md'), 'utf-8');
-        const ifaceMatch = spec.match(/^interface:\s*\[([^\]]+)\]/m);
-        if (ifaceMatch) {
-          state.interface = ifaceMatch[1].split(',').map(s => s.trim().replace(/['"]/g, ''));
+        const parsed = parseTargetsFromSpec(spec);
+        if (parsed) {
+          state.targets = parsed;
+          // Ensure all targets have pid field
+          for (const t of Object.values(state.targets)) {
+            if (t.pid === undefined) t.pid = null;
+          }
         } else {
-          state.interface = [];
+          // Fallback: single web target
+          state.targets = { web: { ...TARGET_DEFAULTS.web, pid: null } };
         }
       }
       state.phase = 'build';
       state.round = 1;
       state.strategy = 'initial';
       writeState(state);
-      const ifaceStr = (state.interface && state.interface.length > 0) ? state.interface.join(',') : 'none';
-      console.log(`BUILD round=1 strategy=initial context=${state.context} interface=${ifaceStr}`);
+      const targetNames = Object.keys(state.targets).join(',');
+      console.log(`BUILD round=1 strategy=initial context=${state.context} targets=${targetNames}`);
       break;
     }
 
@@ -428,9 +627,14 @@ function cmdNext() {
       const roundDir = path.join(sd, `round-${state.round}`);
       fs.mkdirSync(roundDir, { recursive: true });
 
-      const serverResult = tryStartApp(state);
-      if (!serverResult.ok) {
-        writeFeedback(state, `Server failed to start: ${serverResult.error}`);
+      const startResult = tryStartTargets(state);
+      if (!startResult.ok) {
+        for (const err of startResult.errors) {
+          writeFeedback(state, err.target, `Server failed to start: ${err.error}`);
+        }
+        // Stop any targets that did start
+        stopTargets(state.targets);
+
         const history = readScoreHistory(sd);
         if (history.length >= state.config.maxRounds) {
           state.phase = 'done';
@@ -441,40 +645,73 @@ function cmdNext() {
         state.round++;
         state.strategy = 'REFINE';
         writeState(state);
-        const ifaceStrRetry = (state.interface && state.interface.length > 0) ? state.interface.join(',') : 'none';
-        console.log(`BUILD round=${state.round} strategy=REFINE context=${state.context} interface=${ifaceStrRetry}`);
+        const targetNames = Object.keys(state.targets).join(',');
+        console.log(`BUILD round=${state.round} strategy=REFINE context=${state.context} targets=${targetNames}`);
         break;
       }
 
       state.phase = 'evaluate';
-      state.serverPid = serverResult.pid;
       writeState(state);
-      const ifaceStr = (state.interface && state.interface.length > 0) ? state.interface.join(',') : 'browser';
-      console.log(`EVALUATE round=${state.round} port=${state.serverPort} interface=${ifaceStr}`);
+
+      // Build port map and sorted target list for evaluator
+      const targetInfo = sortedTargetNames(state.targets)
+        .map(n => `${n}:${state.targets[n].port || 'none'}:${state.targets[n].eval}`)
+        .join(',');
+      console.log(`EVALUATE round=${state.round} targets=${targetInfo}`);
       break;
     }
 
     case 'evaluate': {
-      stopServer(state.serverPid);
-      state.serverPid = null;
+      stopTargets(state.targets);
 
-      const scoresPath = path.join(sd, `round-${state.round}`, 'scores.json');
+      const roundDir = path.join(sd, `round-${state.round}`);
+      const scoresPath = path.join(roundDir, 'scores.json');
+
+      // Merge per-target score files (scores-{target}.json) into scores.json
       if (!fs.existsSync(scoresPath)) {
-        writeFeedback(state, 'Evaluator failed to produce scores. App may be too broken to test.');
-        writeDefaultScores(state);
+        const mergedTargets = {};
+        let hasAny = false;
+        for (const name of Object.keys(state.targets)) {
+          const perTargetPath = path.join(roundDir, `scores-${name}.json`);
+          if (fs.existsSync(perTargetPath)) {
+            try {
+              const perTarget = JSON.parse(fs.readFileSync(perTargetPath, 'utf-8'));
+              if (perTarget.targets && perTarget.targets[name]) {
+                mergedTargets[name] = perTarget.targets[name];
+                hasAny = true;
+              }
+            } catch {}
+          }
+        }
+        if (hasAny) {
+          const merged = {
+            round: state.round,
+            timestamp: new Date().toISOString(),
+            targets: mergedTargets,
+            allPassed: false,
+          };
+          fs.writeFileSync(scoresPath, JSON.stringify(merged, null, 2));
+        } else {
+          writeFeedback(state, null, 'Evaluator failed to produce scores. App may be too broken to test.');
+          writeDefaultScores(state);
+        }
       }
 
-      let scoresData = JSON.parse(fs.readFileSync(
-        path.join(sd, `round-${state.round}`, 'scores.json'), 'utf-8'));
-      const criteria = scoreCriteria(state.interface);
-      if (!validateScores(scoresData, criteria)) {
-        writeFeedback(state, `Evaluator wrote invalid scores.json. Received:\n\`\`\`json\n${JSON.stringify(scoresData, null, 2).slice(0, 300)}\n\`\`\`\nExpected: { round, timestamp, scores: { ${criteria.join(', ')} }, allPassed, summary }`);
+      let scoresData = JSON.parse(fs.readFileSync(scoresPath, 'utf-8'));
+
+      if (!validateTargetScores(scoresData, state.targets)) {
+        const expectedShape = {};
+        for (const [name, target] of Object.entries(state.targets)) {
+          expectedShape[name] = { scores: Object.fromEntries(scoreCriteria(target).map(c => [c, 'number'])), summary: 'string' };
+        }
+        writeFeedback(state, null, `Evaluator wrote invalid scores.json. Received:\n\`\`\`json\n${JSON.stringify(scoresData, null, 2).slice(0, 500)}\n\`\`\`\nExpected: { round, timestamp, targets: ${JSON.stringify(expectedShape, null, 2).slice(0, 500)}, allPassed }`);
         writeDefaultScores(state);
         scoresData = JSON.parse(fs.readFileSync(
           path.join(sd, `round-${state.round}`, 'scores.json'), 'utf-8'));
       }
-      const history = appendScoreHistory(sd, scoresData, criteria);
-      const decision = strategicDecision(scoresData.scores, history, state.config);
+
+      const history = appendScoreHistory(sd, scoresData, state.targets);
+      const decision = strategicDecision(scoresData.targets, history, state.config);
 
       if (decision === 'DONE' || decision === 'STOP') {
         state.phase = 'done';
@@ -487,8 +724,8 @@ function cmdNext() {
       state.round++;
       state.strategy = decision;
       writeState(state);
-      const ifaceStr2 = (state.interface && state.interface.length > 0) ? state.interface.join(',') : 'none';
-      console.log(`BUILD round=${state.round} strategy=${decision} context=${state.context} interface=${ifaceStr2}`);
+      const targetNames = Object.keys(state.targets).join(',');
+      console.log(`BUILD round=${state.round} strategy=${decision} context=${state.context} targets=${targetNames}`);
       break;
     }
 
@@ -520,12 +757,15 @@ function cmdReport() {
     ? (lastEntry && lastEntry.allPassed ? 'DONE' : 'STOP')
     : 'IN PROGRESS';
 
+  const targetNames = state.targets ? Object.keys(state.targets).join(', ') : 'none';
+
   const lines = [
     '═══════════════════════════════════════',
     ` HARNESS REPORT: ${runId}`,
     '═══════════════════════════════════════',
     ` Prompt: "${state.prompt}"`,
     ` Mode: ${state.context}${state.worktree ? ' (worktree)' : ''}`,
+    ` Targets: ${targetNames}`,
     ` Rounds: ${history.length}`,
     ` Duration: ${duration}`,
     ` Result: ${result}`,
@@ -534,19 +774,24 @@ function cmdReport() {
   ];
 
   for (const h of history) {
-    const s = h.scores;
-    if (!s) {
+    if (!h.targets) {
       lines.push(`   R${h.round}: (invalid score data)`);
       continue;
     }
-    const avg = avgScore(s).toFixed(2);
-    const parts = Object.entries(s).map(([k, v]) => `${k}=${v}`).join(' ');
-    lines.push(`   R${h.round}: ${parts} (avg ${avg})`);
+    const avg = avgScoreAllTargets(h.targets).toFixed(2);
+    lines.push(`   R${h.round}: (avg ${avg})`);
+    for (const [name, t] of Object.entries(h.targets)) {
+      const parts = Object.entries(t.scores).map(([k, v]) => `${k}=${v}`).join(' ');
+      lines.push(`     ${name}: ${parts}`);
+    }
   }
 
-  if (lastEntry && lastEntry.summary) {
+  if (lastEntry && lastEntry.targets) {
     lines.push('');
-    lines.push(` Summary: ${lastEntry.summary}`);
+    lines.push(' Last round summaries:');
+    for (const [name, t] of Object.entries(lastEntry.targets)) {
+      if (t.summary) lines.push(`   ${name}: ${t.summary}`);
+    }
   }
 
   lines.push('');
@@ -578,10 +823,17 @@ if (require.main === module) {
   }
 } else {
   module.exports = {
-    needsServer,
+    targetNeedsProcess,
     scoreCriteria,
+    allCriteria,
     avgScore,
-    validateScores,
+    avgScoreAllTargets,
+    validateTargetScores,
+    allScoresPassed,
     strategicDecision,
+    parseTargetsFlag,
+    parseTargetsFromSpec,
+    sortedTargetNames,
+    TARGET_DEFAULTS,
   };
 }
