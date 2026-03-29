@@ -155,15 +155,15 @@ function scoreCriteria(target) {
   const common = ['product_depth', 'functionality', 'code_quality'];
   switch (target.eval) {
     case 'playwright':
-      return [...common, 'visual_design'];
+      return [...common, 'visual_design', 'security'];
     case 'maestro':
-      return [...common, 'visual_design', 'mobile_ux'];
+      return [...common, 'visual_design', 'mobile_ux', 'security'];
     case 'curl':
-      return [...common, 'api_design'];
+      return [...common, 'api_design', 'security'];
     case 'bash':
-      return [...common, 'ux_design'];
+      return [...common, 'ux_design', 'security'];
     default:
-      return [...common, 'visual_design'];
+      return [...common, 'visual_design', 'security'];
   }
 }
 
@@ -616,6 +616,14 @@ function cmdNext() {
           state.targets = { web: { ...TARGET_DEFAULTS.web, pid: null } };
         }
       }
+      state.phase = 'review';
+      writeState(state);
+      console.log('REVIEW');
+      break;
+    }
+
+    case 'review': {
+      // review-notes.md is optional — reviewer writes it if changes were made
       state.phase = 'build';
       state.round = 1;
       state.strategy = 'initial';
