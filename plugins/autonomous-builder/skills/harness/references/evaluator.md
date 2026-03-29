@@ -37,7 +37,23 @@ Clean architecture? Obvious bugs?
 ### Target-Specific Criteria (based on eval tool)
 
 **visual_design** (eval: playwright, maestro)
-Coherent visual identity or generic AI patterns? Layout, typography, color, spacing, responsiveness.
+Score these 4 dimensions independently (1-10 each) in feedback.
+The final visual_design score in scores.json = average of the four, rounded to nearest integer.
+
+- **Identity**: Distinctive look or generic AI app? Custom palette applied, typography has
+  personality, not default framework styling.
+- **Hierarchy**: Clear visual hierarchy? Heading sizes differentiated, primary actions stand out,
+  secondary elements recede.
+- **Consistency**: Uniform spacing, colors, components throughout? Same button style everywhere,
+  consistent padding, no mixed border-radius.
+- **Polish**: Empty states handled? Loading states exist? No layout shifts, no raw error dumps,
+  no "undefined" text visible?
+
+AI Slop Indicators (automatic -2 to Identity if 2+ present):
+- Pure white (#FFFFFF) background with system blue (#007AFF) primary
+- Identical card components with no visual variation
+- Default framework shadows/borders unchanged
+- Placeholder text or Lorem ipsum left in
 
 **mobile_ux** (eval: maestro only)
 Navigation patterns (stack, tab, drawer) — appropriate and consistent?
@@ -51,9 +67,54 @@ Consistent response schema? Proper HTTP status codes? Meaningful error bodies? I
 
 **ux_design** (eval: bash)
 Clear help text? Intuitive flags and arguments? Useful error messages? Consistent output formatting? Graceful handling of invalid input?
+
+**security** (all targets, weight: medium)
+Only test what's relevant to the target. Skip items that don't apply.
+
+Checklist:
+- Auth bypass: Access another user's resources by changing IDs in URL/request
+- Missing auth: Hit protected endpoints without token — should get 401, not data
+- Input injection: Send <script>alert(1)</script> in text fields, check if rendered raw
+- Hardcoded secrets: grep for API keys, passwords, tokens in source code
+- CORS: If API target, check Access-Control-Allow-Origin isn't "*" in production config
+- SQL/NoSQL injection: Send ' OR 1=1 in search/filter params
+
+Scoring:
+- 10: All applicable checks pass
+- 7: Minor issues (CORS too permissive but no auth bypass)
+- 4: Auth bypass or injection vulnerability found
+- 1: Multiple critical vulnerabilities
+
+Confidence gate: Only report issues you verified with actual test evidence.
+Don't flag theoretical risks — zero false positives over theoretical coverage.
 </criteria>
 
 <procedure>
+## Testing Order (all targets — follow strictly)
+
+1. **Smoke test**: Does the app load? Main page renders without console errors?
+2. **Core flows**: Complete each user flow from spec.md end-to-end
+3. **Data integrity**: Create → Read → Update → Delete, verify persistence
+4. **Edge cases**: Empty states, boundary values, invalid input
+5. **Cross-target integration**: (if server target exists) Data round-trip API ↔ UI
+6. **Visual/UX audit**: Layout, spacing, responsiveness, design token compliance
+7. **Security checks**: Run the security checklist above
+
+Stop early if smoke test fails — don't waste time on edge cases
+when the app doesn't load.
+
+## Bug Severity Classification
+
+Tag each bug in feedback with severity:
+
+- **CRITICAL**: App crashes, data loss, security vulnerability, core flow blocked
+- **HIGH**: Feature doesn't work but app stays up, wrong data displayed
+- **MEDIUM**: UI glitch, minor UX issue, non-core feature broken
+- **LOW**: Cosmetic, typo, minor inconsistency
+
+Generator should fix CRITICAL → HIGH → MEDIUM in order.
+LOW items are optional on REFINE rounds.
+
 ## Testing Procedure
 
 Read the `eval` field of your target from harness.json and follow the matching strategy:
@@ -212,10 +273,10 @@ Use this EXACT nested schema. The harness parses the `targets.{name}.scores` pat
 Include ONLY the target you are evaluating. The harness merges scores from all evaluators.
 
 Criteria per eval tool:
-- `playwright`: product_depth, functionality, code_quality, visual_design
-- `maestro`: product_depth, functionality, code_quality, visual_design, mobile_ux
-- `curl`: product_depth, functionality, code_quality, api_design
-- `bash`: product_depth, functionality, code_quality, ux_design
+- `playwright`: product_depth, functionality, code_quality, visual_design, security
+- `maestro`: product_depth, functionality, code_quality, visual_design, mobile_ux, security
+- `curl`: product_depth, functionality, code_quality, api_design, security
+- `bash`: product_depth, functionality, code_quality, ux_design, security
 
 ### 2. `{stateDir}/round-{round}/feedback-{target}.md`
 
@@ -225,6 +286,18 @@ Detailed findings for the generator to act on:
 - Priority-ordered fix list
 - If issues originate in another target (e.g., API returning wrong data), note which target is responsible
 - **For 500/crash errors**: read `{stateDir}/{target}-stderr.log`, find the relevant exception stack trace near the time of the failed request, and include it in the feedback. The generator needs the actual exception class and message to fix the root cause — "returns 500" alone forces guesswork that wastes rounds.
+
+### 3. Coverage Self-Assessment (append to feedback file)
+
+After all testing, append this section to `feedback-{target}.md`:
+
+### Test Coverage
+- **Tested**: [list features/flows actually tested with evidence]
+- **Not tested**: [list features/flows skipped and why]
+- **Coverage confidence**: [0-100%]
+
+If coverage confidence < 60%, state what blocked testing
+(app crash, couldn't navigate to feature, timeout, etc.)
 
 ## Calibration
 
