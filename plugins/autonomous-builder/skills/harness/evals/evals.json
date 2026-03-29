@@ -1,0 +1,255 @@
+{
+  "skill_name": "harness",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "/harness --targets \"api,web\" \"Build a bookmark manager with tagging and search\"",
+      "expected_output": "Team mode selected (2+ targets). BUILD phase uses TeamCreate with api-gen and web-gen members. TaskCreate with client depends_on server. EVALUATE phase uses separate TeamCreate with evaluator members. TeamDelete after each phase.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "team_mode_selected",
+          "description": "With 2 targets, Team mode is selected over Sub-agent mode",
+          "check": "Transcript shows TeamCreate being called or Team mode logic being followed"
+        },
+        {
+          "name": "build_team_has_both_targets",
+          "description": "BUILD team includes both api-gen and web-gen members",
+          "check": "TeamCreate call includes members for api and web targets"
+        },
+        {
+          "name": "client_depends_on_server",
+          "description": "TaskCreate sets web target as depends_on api target",
+          "check": "TaskCreate includes depends_on referencing the server target task"
+        },
+        {
+          "name": "team_delete_after_build",
+          "description": "TeamDelete called after BUILD team completes",
+          "check": "TeamDelete called between BUILD and EVALUATE phases"
+        },
+        {
+          "name": "evaluate_team_created",
+          "description": "Separate EVALUATE team created after BUILD team deleted",
+          "check": "Second TeamCreate for eval team after first TeamDelete"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "/harness --targets \"web\" \"Build a pomodoro timer with ambient sounds\"",
+      "expected_output": "Sub-agent mode selected (single target). No TeamCreate. Agent tool used directly to spawn generator and evaluator sub-agents.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "subagent_mode_selected",
+          "description": "With 1 target, Sub-agent mode is selected",
+          "check": "No TeamCreate call; Agent tool used directly"
+        },
+        {
+          "name": "generator_dispatched_as_agent",
+          "description": "Generator dispatched via Agent tool, not TeamCreate",
+          "check": "Agent tool call with generator.md content for web target"
+        },
+        {
+          "name": "evaluator_dispatched_as_agent",
+          "description": "Evaluator dispatched via Agent tool, not TeamCreate",
+          "check": "Agent tool call with evaluator.md content for web target"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/harness --targets \"api,web,mobile\" \"Build a habit tracker with streaks, reminders, and social sharing\"",
+      "expected_output": "Team mode with 3 targets. BUILD team has 3 members. Mobile and web depend_on api. EVALUATE team has 3 parallel evaluators.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "three_member_build_team",
+          "description": "BUILD team has api-gen, web-gen, and mobile-gen",
+          "check": "TeamCreate members list includes all three targets"
+        },
+        {
+          "name": "both_clients_depend_on_server",
+          "description": "Both web and mobile tasks depend_on api task",
+          "check": "TaskCreate shows web and mobile with depends_on api"
+        },
+        {
+          "name": "setup_reports_all_targets",
+          "description": "Setup complete message mentions all three targets",
+          "check": "Output contains api, web, and mobile in setup report"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/harness --targets \"api,web\" \"Build a recipe sharing platform with ingredient search\"",
+      "expected_output": "Generator prompt includes techStack from config. Generator references config.techStack.server and config.techStack.web instead of hardcoded framework names.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "techstack_in_harness_json",
+          "description": "harness.json state contains config.techStack object",
+          "check": "harness.json includes techStack with server and web keys"
+        },
+        {
+          "name": "generator_reads_techstack",
+          "description": "Generator prompt references config.techStack for framework selection",
+          "check": "Generator prompt or transcript mentions techStack or config.techStack"
+        },
+        {
+          "name": "no_hardcoded_nestjs",
+          "description": "Generator prompt does not hardcode 'Prefer NestJS' — uses config reference instead",
+          "check": "Generator prompt says 'config.techStack.server' not 'Prefer NestJS'"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "/harness --targets \"api,web\" \"Build an employee directory with org chart visualization\"",
+      "expected_output": "Evaluator prompt includes boundary coherence verification checklist, known failure patterns section, and team communication protocol.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "boundary_coherence_in_evaluator",
+          "description": "Evaluator prompt contains Boundary Coherence Verification section",
+          "check": "Evaluator prompt includes 'Boundary Coherence Verification' or 'API Response Shape'"
+        },
+        {
+          "name": "failure_patterns_in_evaluator",
+          "description": "Evaluator prompt contains Known Failure Patterns section",
+          "check": "Evaluator prompt includes 'Known Failure Patterns' or 'TypeScript Generic Masking'"
+        },
+        {
+          "name": "team_protocol_in_evaluator",
+          "description": "Evaluator prompt contains Team Communication Protocol section",
+          "check": "Evaluator prompt includes 'Team Communication Protocol' or 'SendMessage'"
+        },
+        {
+          "name": "why_first_constraints",
+          "description": "Evaluator constraints include reasoning (Why-First), not just bare NEVER rules",
+          "check": "Evaluator constraints include explanatory text after NEVER rules"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "/harness --targets \"api,web\" \"Build a kanban board with drag-and-drop\"",
+      "expected_output": "Generator prompt includes team communication protocol, error handling section, and Skill self-invocation for playwright targets. No frontend-design skill content injected by orchestrator.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "team_protocol_in_generator",
+          "description": "Generator prompt contains Team Communication Protocol section with SendMessage instructions",
+          "check": "Generator prompt includes 'Team Communication Protocol' and 'SendMessage'"
+        },
+        {
+          "name": "error_handling_in_generator",
+          "description": "Generator prompt contains Error Handling section",
+          "check": "Generator prompt includes 'Error Handling' section with types.ts fallback"
+        },
+        {
+          "name": "skill_self_invocation",
+          "description": "Generator prompt tells agent to invoke frontend-design skill itself",
+          "check": "Generator prompt includes 'Skill(\"frontend-design:frontend-design\")' or 'invoke Skill'"
+        },
+        {
+          "name": "no_orchestrator_skill_injection",
+          "description": "Orchestrator does NOT load frontend-design skill content into generator prompt",
+          "check": "Orchestrator dispatch does not call Skill('frontend-design') before spawning generator"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "/harness --targets \"api,web\" \"Build a team wiki with markdown support and full-text search\"",
+      "expected_output": "With settings.json techStack changed to Spring Boot + Kotlin for server, the generator uses Spring Boot instead of NestJS. The techStack value is passed through harness.json config.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "custom_techstack_propagated",
+          "description": "Modified techStack.server value appears in harness.json config",
+          "check": "harness.json config.techStack.server contains 'Spring Boot' or 'Kotlin'"
+        },
+        {
+          "name": "generator_uses_custom_stack",
+          "description": "Generator agent builds server with Spring Boot + Kotlin, not NestJS",
+          "check": "Server code uses Spring Boot/Kotlin patterns (build.gradle.kts, @RestController, etc.)"
+        },
+        {
+          "name": "web_stack_unchanged",
+          "description": "Web target still uses the configured web stack (React + Vite)",
+          "check": "Web code uses React/Vite patterns, not affected by server stack change"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "/harness --targets \"api,web\" \"Build a note-taking app with rich text editing\"",
+      "expected_output": "After PLAN phase, harness outputs REVIEW action. Orchestrator dispatches reviewer agent with reviewer.md content. After reviewer completes, harness transitions to BUILD.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "review_phase_exists",
+          "description": "harness.js outputs REVIEW action between PLAN and BUILD",
+          "check": "Transcript shows 'REVIEW' action output from harness.js next call"
+        },
+        {
+          "name": "reviewer_agent_dispatched",
+          "description": "Orchestrator dispatches reviewer agent with reviewer.md prompt",
+          "check": "Agent tool called with reviewer.md content and runId"
+        },
+        {
+          "name": "review_before_build",
+          "description": "BUILD action comes after REVIEW, not directly after PLAN",
+          "check": "Action sequence shows PLAN → REVIEW → BUILD"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "/harness --targets \"api,web\" \"Build a user dashboard with authentication and profile management\"",
+      "expected_output": "Evaluator prompt includes security criteria. scores.json contains security field for all targets.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "security_criteria_in_evaluator",
+          "description": "Evaluator prompt contains security scoring checklist",
+          "check": "Evaluator prompt includes 'Auth bypass' and 'Input injection' and 'security' criteria"
+        },
+        {
+          "name": "security_in_score_criteria",
+          "description": "scoreCriteria function includes security for all eval tools",
+          "check": "harness.js scoreCriteria returns security for playwright, curl, maestro, and bash"
+        },
+        {
+          "name": "qa_methodology_in_evaluator",
+          "description": "Evaluator prompt contains structured testing order and severity classification",
+          "check": "Evaluator prompt includes 'Testing Order' and 'Bug Severity Classification'"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "/harness --targets \"api,web,mobile\" \"Build a meal planning app with grocery list generation\"",
+      "expected_output": "Planner prompt includes problem reframing questions and design_system token structure. spec.md contains concrete design tokens (hex values, px values), not prose descriptions.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "reframing_in_planner",
+          "description": "Planner prompt contains problem reframing questions",
+          "check": "Planner prompt includes 'Who specifically needs this' and 'status quo'"
+        },
+        {
+          "name": "design_system_structure",
+          "description": "Planner prompt specifies design_system token output format",
+          "check": "Planner prompt includes 'design_system:' YAML structure with colors, typography, spacing"
+        },
+        {
+          "name": "frontend_design_skill_invocation",
+          "description": "Planner prompt instructs to invoke frontend-design skill before token generation",
+          "check": "Planner prompt includes 'Skill(\"frontend-design:frontend-design\")'"
+        }
+      ]
+    }
+  ]
+}
