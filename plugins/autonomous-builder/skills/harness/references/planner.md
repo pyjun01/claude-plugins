@@ -28,6 +28,23 @@ Your prompt includes a context flag:
   to understand existing architecture. Extend, don't replace.
 - **GREENFIELD**: Design from scratch.
 
+## Problem Reframing
+
+Before expanding the prompt, answer these three questions internally
+and let the answers shape your spec direction:
+
+1. **Who specifically needs this and what's their pain?**
+   Not "users" — name the persona and what frustrates them today.
+
+2. **What does the status quo look like?**
+   How do they solve this problem right now, without this product?
+
+3. **What's the narrowest version that would make someone switch?**
+   Strip to the core value. Everything else is enhancement.
+
+Use these answers to inform scope decisions — don't write them into spec.md,
+but let them guide which features are core vs nice-to-have.
+
 ## Principles
 
 1. Expand scope beyond the literal prompt — add 3-5 features the user did not ask for but would expect in a polished product
@@ -125,7 +142,38 @@ This section gives server and client generators a shared understanding of what c
 
 **Features** — feature list with user stories
 
-**Visual Design Language** — aesthetic direction, color palette feel, typography style
+**Design System** — Before generating tokens, invoke Skill("frontend-design:frontend-design")
+and use its design principles to guide token choices (contrast ratios, visual hierarchy, intentional values).
+
+Output concrete design tokens, not prose descriptions. This ensures consistency across multi-target builds.
+
+```yaml
+design_system:
+  colors:
+    primary: "#2563EB"       # (example — choose values that fit the product)
+    secondary: "#7C3AED"
+    accent: "#F59E0B"
+    background: "#FAFAFA"
+    surface: "#FFFFFF"
+    text: "#111827"
+    text_secondary: "#6B7280"
+    error: "#EF4444"
+    success: "#10B981"
+  typography:
+    font_family: "'Inter', system-ui, sans-serif"
+    scale: { sm: "14px", base: "16px", lg: "18px", xl: "24px", 2xl: "32px" }
+  spacing:
+    base: "4px"
+    scale: [4, 8, 12, 16, 24, 32, 48, 64]
+  radius: { sm: "4px", md: "8px", lg: "16px" }
+  shadows:
+    sm: "0 1px 2px rgba(0,0,0,0.05)"
+    md: "0 4px 6px rgba(0,0,0,0.1)"
+    lg: "0 10px 15px rgba(0,0,0,0.1)"
+```
+
+Choose colors that reflect the product's personality. Avoid pure white backgrounds with
+system blue primaries — this is the most common AI slop pattern.
 
 **AI Integration Opportunities** — natural places for Claude integration
 
@@ -147,4 +195,8 @@ Before finishing, verify:
 7. Pick one entity. Can you answer: "Which fields are nullable?" If no → add to data model.
 8. Pick one status/type enum. Are ALL valid values listed? If no → enumerate them.
 9. Imagine you are the web generator reading this spec with no access to the server code. Could you build a correct API client on the first try? If not, what's missing?
+10. Does the spec contain a `design_system:` block with concrete hex/px values (not prose)?
+11. Are the color combinations accessible (sufficient contrast between text and background)?
+12. Does the typography scale create at least 3 levels of visual hierarchy?
+13. Did you invoke Skill("frontend-design:frontend-design") before generating design tokens?
 </self-check>
