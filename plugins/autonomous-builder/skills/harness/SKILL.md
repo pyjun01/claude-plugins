@@ -62,6 +62,12 @@ Repeat until done:
          prompt: {planner content} + "\n\nrunId: {runId}"
        → Ignore the agent's response entirely
 
+     "REVIEW"
+       → Read `$CLAUDE_PLUGIN_ROOT/skills/harness/references/reviewer.md`
+       → Use Agent tool: general-purpose agent, model: opus
+         prompt: {reviewer content} + "\n\nrunId: {runId}"
+       → Ignore the agent's response entirely
+
      "BUILD ..." (any variant)
        → Parse the `targets=` value from the action line (comma-separated target names)
        → Read `$CLAUDE_PLUGIN_ROOT/skills/harness/references/generator.md`
