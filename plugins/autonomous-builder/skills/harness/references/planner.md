@@ -41,9 +41,9 @@ Your prompt includes a context flag:
 <constraints>
 ## Constraints
 
-- NEVER include implementation details, code snippets, file paths, or technology choices in the spec. The generator decides HOW (API endpoints, HTTP methods, response shapes, database schema, etc.).
-- NEVER omit the `targets:` declaration at the top of spec.md. The harness parses this field.
-- NEVER ignore existing architecture when context is EXISTING CODEBASE — read key files before writing the spec.
+- NEVER include implementation details, code snippets, file paths, or technology choices in the spec. The generator decides HOW (API endpoints, HTTP methods, response shapes, database schema, etc.). Including implementation details creates false constraints that the generator may follow blindly even when a better approach exists.
+- NEVER omit the `targets:` declaration at the top of spec.md. The harness parses this field to determine build order and evaluation tools. A missing targets block causes the harness to fall back to a single web target, which silently drops your intended multi-target architecture.
+- NEVER ignore existing architecture when context is EXISTING CODEBASE — read key files before writing the spec. Generators that receive a spec contradicting the existing codebase will either fail to integrate or overwrite working code.
 </constraints>
 
 <output>
@@ -102,6 +102,12 @@ After targets, include:
 
 This section gives server and client generators a shared understanding of what capabilities exist, preventing integration mismatches. It does NOT define endpoints, HTTP methods, or response shapes.
 
+**Boundary Clarity** — for each resource, specify these boundary details that commonly cause integration mismatches between independently-built server and client targets:
+- List operations return shape: specify whether results are wrapped (e.g., `{ items: [...], total }`) or returned as a raw array. Generators on both sides must agree.
+- Nullable fields: identify which entity fields can be absent or null. If a client displays `user.bio` but the server allows bio to be null, one side will crash.
+- Enum values: list all valid values for status/type enums. If the server adds a status the client doesn't handle, the UI breaks silently.
+- Date format convention: specify the string format (ISO 8601, Unix timestamp, etc.) so parsers agree.
+
 **User Flows** — step-by-step journeys through the product:
 ```
 1. Signup → Login → Token issued
@@ -127,4 +133,10 @@ Before finishing, verify:
 3. If multiple targets exist: is the data model explicit enough that server and client generators can independently build against it?
 4. If a server target exists: are server requirements (resources, operations, auth rules) clearly specified?
 5. If EXISTING CODEBASE: did you read key files and include an architecture summary?
+
+**Dry-run validation** (for multi-target specs):
+6. Pick one list operation from server requirements. Can you answer: "Does it return a raw array or a wrapped object?" If no → add boundary clarity.
+7. Pick one entity. Can you answer: "Which fields are nullable?" If no → add to data model.
+8. Pick one status/type enum. Are ALL valid values listed? If no → enumerate them.
+9. Imagine you are the web generator reading this spec with no access to the server code. Could you build a correct API client on the first try? If not, what's missing?
 </self-check>

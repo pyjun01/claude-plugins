@@ -1,5 +1,14 @@
 {
-  "maxRounds": 5,
+  "maxRounds": 10,
   "scoreThreshold": 7,
-  "serverReadyTimeout": 30000
+  "serverReadyTimeout": 30000,
+  "executionMode": "auto",
+  "techStack": {
+    "server": "NestJS + TypeScript",
+    "web": "React + Vite + TypeScript",
+    "mobile": "Expo + TypeScript + React Navigation",
+    "cli": "Node.js + Commander + TypeScript",
+    "monorepo": "pnpm + Turborepo",
+    "testRunner": "Vitest"
+  }
 }

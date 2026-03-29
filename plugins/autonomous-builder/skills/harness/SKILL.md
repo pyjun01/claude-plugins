@@ -39,6 +39,13 @@ Bash tool:
 Parse JSON output. Save runId for all subsequent calls.
 Report to user: "Setup complete. Run: {runId}, Mode: {context}"
 
+### Execution Mode Selection
+
+After setup, read harness.json and determine execution mode:
+
+- **Team mode**: 2+ targets AND `config.executionMode` is `"auto"` or `"team"`
+- **Sub-agent mode**: 1 target, OR `config.executionMode` is `"subagent"`
+
 ### Phase 2: Loop
 
 Repeat until done:
@@ -59,25 +66,34 @@ Repeat until done:
        → Parse the `targets=` value from the action line (comma-separated target names)
        → Read `$CLAUDE_PLUGIN_ROOT/skills/harness/references/generator.md`
        → Read harness.json to get the targets object (for target types and eval tools)
-       → Determine build order: server targets first, then client targets.
 
-       → For EACH server target (sequentially):
-         → If target eval is "playwright": invoke Skill("frontend-design:frontend-design"),
-           capture the loaded skill content as {frontendDesignContent}
-         → Use Agent tool: general-purpose agent, model: opus
-           prompt: {generator content}
-             + (if playwright target) "\n\n## Frontend Design Guidelines\n\n" + {frontendDesignContent}
-             + "\n\nrunId: {runId}\ntarget: {targetName}"
-         → Wait for this agent to complete before starting the next target
+       **If Team mode:**
+         → Collect server target names and client target names separately
+         → TeamCreate:
+           team_name: "build-{runId}-r{round}"
+           members: one per target, each with:
+             name: "{targetName}-gen"
+             model: "opus"
+             prompt: {generator content} + "\n\nrunId: {runId}\ntarget: {targetName}"
+         → TaskCreate: one task per target
+           - Server targets: no dependencies
+           - Client targets: depends_on server target tasks
+             (this enforces server-first build order within the team)
+         → Wait for all team members to complete (they self-coordinate via SendMessage)
+         → TeamDelete
 
-       → Then for EACH client target (can be parallel if multiple):
-         → If target eval is "playwright": invoke Skill("frontend-design:frontend-design"),
-           capture the loaded skill content as {frontendDesignContent}
-         → Use Agent tool: general-purpose agent, model: opus
-           prompt: {generator content}
-             + (if playwright target) "\n\n## Frontend Design Guidelines\n\n" + {frontendDesignContent}
-             + "\n\nrunId: {runId}\ntarget: {targetName}"
-         → Client targets can run in parallel since they all read the same contract
+       **If Sub-agent mode:**
+         → Determine build order: server targets first, then client targets.
+
+         → For EACH server target (sequentially):
+           → Use Agent tool: general-purpose agent, model: opus
+             prompt: {generator content} + "\n\nrunId: {runId}\ntarget: {targetName}"
+           → Wait for this agent to complete before starting the next target
+
+         → Then for EACH client target (can be parallel if multiple):
+           → Use Agent tool: general-purpose agent, model: opus
+             prompt: {generator content} + "\n\nrunId: {runId}\ntarget: {targetName}"
+           → Client targets can run in parallel since they all read the same contract
 
        → Ignore all agent responses entirely
 
@@ -85,10 +101,22 @@ Repeat until done:
        → Parse the `targets=` value (format: name:port:eval,name:port:eval,...)
        → Read `$CLAUDE_PLUGIN_ROOT/skills/harness/references/evaluator.md`
 
-       → For EACH target (can be parallel):
-         → Use Agent tool: general-purpose agent, model: opus
-           prompt: {evaluator content} + "\n\nrunId: {runId}\ntarget: {targetName}"
-         → All targets are evaluated with all processes running simultaneously
+       **If Team mode:**
+         → TeamCreate:
+           team_name: "eval-{runId}-r{round}"
+           members: one per target, each with:
+             name: "{targetName}-eval"
+             model: "opus"
+             prompt: {evaluator content} + "\n\nrunId: {runId}\ntarget: {targetName}"
+         → TaskCreate: one task per target (no dependencies — all evaluate in parallel)
+         → Wait for all team members to complete (they share cross-target findings via SendMessage)
+         → TeamDelete
+
+       **If Sub-agent mode:**
+         → For EACH target (can be parallel):
+           → Use Agent tool: general-purpose agent, model: opus
+             prompt: {evaluator content} + "\n\nrunId: {runId}\ntarget: {targetName}"
+           → All targets are evaluated with all processes running simultaneously
 
        → Each evaluator writes its own scores-{target}.json file.
          The harness merges them automatically on the next `harness.js next` call.
@@ -107,11 +135,13 @@ Repeat until done:
 - NEVER use run_in_background for ANY harness.js Bash call — harness.js is a
   file-based state machine and concurrent calls corrupt state. ALL harness.js
   calls MUST be foreground (blocking).
-- Server target generators MUST complete before client target generators start.
-  This ensures the API contract (packages/shared/types.ts) exists before clients build.
-- Client target generators CAN run in parallel — they all read the same contract.
-- Evaluator agents CAN run in parallel — all target processes are already running.
+- In sub-agent mode: server target generators MUST complete before client target generators start.
+- In team mode: use TaskCreate with depends_on to enforce server-before-client order.
+  The team members handle the sequencing themselves.
+- Evaluator agents always run in parallel (both modes) — all target processes are already running.
 - You are a switch statement, nothing more. Do not add logic beyond dispatch.
+- Team mode specific: always TeamDelete after each BUILD or EVALUATE phase completes.
+  Only one team can be active at a time.
 
 ### Phase 3: Report
 

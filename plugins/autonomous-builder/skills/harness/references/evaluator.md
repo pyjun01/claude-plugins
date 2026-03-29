@@ -116,16 +116,64 @@ When evaluating a client target (web, mobile) and a server target exists:
 - Test the full data flow: create data via UI → verify it persists via API (or vice versa)
 - If the API returns unexpected data or errors, note this in feedback — the server generator will read your feedback and fix it
 - Reference `packages/shared/types.ts` when reporting type mismatches
+
+### Boundary Coherence Verification
+
+Most runtime failures come from the seam between two individually-correct components,
+not from within either component. Always verify these four boundary pairs by reading
+both sides simultaneously:
+
+**1. API Response Shape ↔ Frontend Hook Types**
+- Extract the response object from each API route's `NextResponse.json()` (or equivalent)
+- Extract the generic type `T` from the corresponding frontend hook's `fetchJson<T>()`
+- Verify they match. Watch for:
+  - Wrapped responses: API returns `{ data: [...] }` but hook expects a raw array
+  - snake_case ↔ camelCase mismatch between API and frontend
+  - Optional fields that one side treats as required
+
+**2. File Paths ↔ Link Targets**
+- Collect all `src/app/` page file paths (extract URL patterns; route groups `(group)` are removed from URLs, `[param]` is dynamic)
+- Collect all `href=`, `router.push(`, `redirect(` values in code
+- Every link must match an actual page path
+
+**3. State Transition Map ↔ Actual Updates**
+- Extract the allowed transitions from the state transition map (e.g., `STATE_TRANSITIONS`)
+- Find every `.update({ status: '...' })` in the codebase
+- Every code update must exist in the map (no unauthorized transitions)
+- Every map transition should be reachable from code (no dead transitions)
+
+**4. DB Schema ↔ API Response ↔ Frontend Types**
+- Verify field names are consistent through the entire chain
+- Check that optional/nullable fields are handled consistently on both sides
 </procedure>
+
+<failure-patterns>
+## Known Failure Patterns
+
+These are real bugs that pass `npm run build` but break at runtime. Check for them explicitly:
+
+1. **TypeScript Generic Masking**: `fetchJson<Project[]>()` compiles even if the API actually returns `{ projects: [...] }`. The generic is a cast, not a runtime check. Always verify the actual response shape.
+
+2. **Wrapped Response Unwrap**: API returns `{ items: [...], total: 42 }` but frontend reads the response as a raw array. Look for `.data`, `.items`, or `.results` unwrapping mismatches.
+
+3. **snake_case / camelCase Drift**: API field `created_at` vs frontend type `createdAt`. One side may silently get `undefined` for every field.
+
+4. **Missing Route Prefix**: Code links to `/projects/123` but the actual page lives at `/app/projects/[id]` because of a route group. The route group `(app)` is invisible in the URL but present in the file path.
+
+5. **Async 202 vs Final Response**: API returns `{ status: "processing" }` (202) but the frontend treats it as the final result and renders incomplete data.
+
+6. **Optional Field Divergence**: DB column is nullable, API includes the field as `null`, but frontend type marks it as required and crashes on `.toString()`.
+</failure-patterns>
 
 <constraints>
 ## Constraints
 
-- NEVER write scores without first testing via the appropriate tool (Playwright for web, Maestro for mobile, Bash for API/CLI) — every score must cite a specific test result.
-- NEVER use camelCase field names in scores.json. Use snake_case exactly as shown in the schema below.
-- NEVER flatten the scores.json structure — follow the exact schema.
-- NEVER use Playwright MCP for API or CLI targets — use Bash tool instead.
-- NEVER use Maestro MCP for non-mobile targets.
+- NEVER write scores without first testing via the appropriate tool (Playwright for web, Maestro for mobile, Bash for API/CLI). Every score must cite a specific test result — scores without evidence are fabricated.
+- NEVER use camelCase field names in scores.json. Use snake_case exactly as shown in the schema below. The harness parser rejects mismatched keys silently, producing default 0 scores.
+- NEVER flatten the scores.json structure — follow the exact schema. A flat `{ product_depth: 7 }` instead of nested `{ targets: { web: { scores: { product_depth: 7 } } } }` causes score loss.
+- NEVER use Playwright MCP for API or CLI targets — use Bash tool instead. Playwright cannot issue raw HTTP requests or capture exit codes.
+- NEVER use Maestro MCP for non-mobile targets. Maestro controls iOS Simulator only.
+- NEVER assume `npm run build` success means the app works. TypeScript generics, `any` casts, and type assertions all pass compilation but fail at runtime.
 </constraints>
 
 <output>
@@ -187,6 +235,24 @@ Detailed findings for the generator to act on:
 - Do NOT approve mediocre work.
 </output>
 
+<team-protocol>
+## Team Communication Protocol (Agent Team mode)
+
+When running as part of an evaluator team (multiple evaluators in one TeamCreate),
+use SendMessage to share cross-target findings in real time:
+
+**Send to other evaluators:**
+- Boundary mismatches that affect their target (e.g., you evaluate the API and find a response shape issue → SendMessage to the web evaluator with the exact mismatch)
+- Shared infrastructure failures (e.g., auth is broken for all targets)
+
+**Receive from other evaluators:**
+- If another evaluator reports an issue originating in YOUR target's code, incorporate it into your feedback file with attribution
+
+**Do NOT broadcast** (`SendMessage({to: "all"})`) — always target the specific evaluator who needs the information. Broadcast is expensive and noisy.
+
+When running as a sub-agent (single target, no team), this section does not apply.
+</team-protocol>
+
 <self-check>
 Before finishing, verify:
 1. Is scores-{target}.json valid JSON with nested `targets.{target}.scores` using snake_case keys?
@@ -194,4 +260,6 @@ Before finishing, verify:
 3. Does every score have specific evidence from testing?
 4. Does feedback-{target}.md include a priority-ordered fix list?
 5. If cross-target issues were found, are they clearly attributed to the responsible target?
+6. Did you check the known failure patterns (TypeScript generic masking, wrapped response unwrap, snake/camelCase drift)?
+7. Did you verify at least one boundary coherence pair (API↔Frontend, Routes↔Links, State↔Code, DB↔API↔Types)?
 </self-check>

@@ -552,6 +552,8 @@ function cmdSetup() {
       maxRounds,
       scoreThreshold: threshold,
       serverReadyTimeout: config.serverReadyTimeout || 30000,
+      executionMode: config.executionMode || 'auto',
+      techStack: config.techStack || {},
     },
   };
   writeState(state);
