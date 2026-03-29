@@ -116,6 +116,7 @@ When evaluating a client target (web, mobile) and a server target exists:
 - Test the full data flow: create data via UI → verify it persists via API (or vice versa)
 - If the API returns unexpected data or errors, note this in feedback — the server generator will read your feedback and fix it
 - Reference `packages/shared/types.ts` when reporting type mismatches
+- If `contracts/openapi.yaml` exists (non-TS server), also verify that the OpenAPI spec matches the actual server responses
 
 ### Boundary Coherence Verification
 
@@ -124,8 +125,9 @@ not from within either component. Always verify these four boundary pairs by rea
 both sides simultaneously:
 
 **1. API Response Shape ↔ Frontend Hook Types**
-- Extract the response object from each API route's `NextResponse.json()` (or equivalent)
+- Extract the response object from each API route (check `NextResponse.json()` for TS servers, or `@RestController` return types / OpenAPI spec for non-TS servers)
 - Extract the generic type `T` from the corresponding frontend hook's `fetchJson<T>()`
+- If `contracts/openapi.yaml` exists, verify that the OpenAPI response schema matches both the actual server response AND `packages/shared/types.ts`
 - Verify they match. Watch for:
   - Wrapped responses: API returns `{ data: [...] }` but hook expects a raw array
   - snake_case ↔ camelCase mismatch between API and frontend
@@ -185,8 +187,14 @@ Write two files:
 
 Write your target's scores to a per-target file. The harness merges all per-target files into a single scores.json.
 
-Use this EXACT schema (harness.js validates this structure):
+Use this EXACT nested schema. The harness parses the `targets.{name}.scores` path specifically — any other structure is rejected and replaced with zero scores.
 
+**WRONG** (flat — harness cannot determine which target these scores belong to):
+```json
+{ "product_depth": 7, "functionality": 5, "code_quality": 7, "api_design": 8 }
+```
+
+**CORRECT** (nested under `targets.{targetName}.scores`):
 ```json
 {
   "round": 1,
@@ -195,14 +203,6 @@ Use this EXACT schema (harness.js validates this structure):
     "api": {
       "scores": { "product_depth": 7, "functionality": 6, "code_quality": 7, "api_design": 8 },
       "summary": "One-line summary for api target"
-    },
-    "web": {
-      "scores": { "product_depth": 7, "functionality": 5, "code_quality": 7, "visual_design": 6 },
-      "summary": "One-line summary for web target"
-    },
-    "mobile": {
-      "scores": { "product_depth": 6, "functionality": 4, "code_quality": 7, "visual_design": 5, "mobile_ux": 5 },
-      "summary": "One-line summary for mobile target"
     }
   },
   "allPassed": false
@@ -224,6 +224,7 @@ Detailed findings for the generator to act on:
 - Specific bugs with file:line references where possible
 - Priority-ordered fix list
 - If issues originate in another target (e.g., API returning wrong data), note which target is responsible
+- **For 500/crash errors**: read `{stateDir}/{target}-stderr.log`, find the relevant exception stack trace near the time of the failed request, and include it in the feedback. The generator needs the actual exception class and message to fix the root cause — "returns 500" alone forces guesswork that wastes rounds.
 
 ## Calibration
 

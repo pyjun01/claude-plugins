@@ -78,6 +78,14 @@ Common patterns:
 - Full-stack web → `api` (server) + `web` (client)
 - Full-stack with mobile → `api` (server) + `web` (client) + `mobile` (client, eval: maestro)
 
+### Project Structure Note
+
+The generator will determine the project structure based on `config.techStack`:
+- **All-TypeScript targets**: pnpm Turborepo monorepo with everything under `packages/`
+- **Mixed stacks** (e.g., Kotlin server + TypeScript clients): non-TS server lives at `server/` outside the monorepo, TS clients stay in `packages/`, API contract shared via `contracts/openapi.yaml`
+
+You do NOT need to specify this in the spec — the generator handles it. But be aware that the server requirements you write will be implemented in whatever language `config.techStack.server` specifies.
+
 ### Spec Body
 
 After targets, include:

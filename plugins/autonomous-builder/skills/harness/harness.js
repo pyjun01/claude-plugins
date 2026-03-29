@@ -679,8 +679,26 @@ function cmdNext() {
             try {
               const perTarget = JSON.parse(fs.readFileSync(perTargetPath, 'utf-8'));
               if (perTarget.targets && perTarget.targets[name]) {
+                // Correct nested format
                 mergedTargets[name] = perTarget.targets[name];
                 hasAny = true;
+              } else {
+                // Auto-normalize flat formats: { product_depth: 8, ... } or { scores: { ... } }
+                const criteria = scoreCriteria(state.targets[name]);
+                let scores = null;
+                if (perTarget.scores && typeof perTarget.scores === 'object' && !Array.isArray(perTarget.scores)) {
+                  scores = perTarget.scores;
+                } else if (criteria.some(c => typeof perTarget[c] === 'number')) {
+                  scores = {};
+                  for (const c of criteria) {
+                    if (typeof perTarget[c] === 'number') scores[c] = perTarget[c];
+                  }
+                }
+                if (scores && Object.keys(scores).length > 0) {
+                  mergedTargets[name] = { scores, summary: perTarget.summary || '' };
+                  hasAny = true;
+                  console.error(`WARNING: scores-${name}.json used non-standard format, auto-normalized`);
+                }
               }
             } catch {}
           }
