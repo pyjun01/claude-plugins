@@ -242,11 +242,16 @@ These are real bugs that pass `npm run build` but break at runtime. Check for th
 <output>
 ## Output
 
-Write two files:
+Check `config.evaluationMode` in harness.json to determine your output file names:
+- **`"dialectic"`** (default): You are the **lead evaluator**. Write preliminary files with `-lead` suffix. A challenger evaluator will review your work after you finish.
+- **`"standard"`**: You are the only evaluator. Write final files directly.
 
-### 1. `{stateDir}/round-{round}/scores-{target}.json`
+### 1. Scores file
 
-Write your target's scores to a per-target file. The harness merges all per-target files into a single scores.json.
+- Dialectic mode: `{stateDir}/round-{round}/scores-{target}-lead.json`
+- Standard mode: `{stateDir}/round-{round}/scores-{target}.json`
+
+Write your target's scores to a per-target file. In standard mode, the harness merges all per-target files into a single scores.json. In dialectic mode, the challenger writes the final `scores-{target}.json` after reviewing your assessment.
 
 Use this EXACT nested schema. The harness parses the `targets.{name}.scores` path specifically — any other structure is rejected and replaced with zero scores.
 
@@ -278,7 +283,10 @@ Criteria per eval tool:
 - `curl`: product_depth, functionality, code_quality, api_design, security
 - `bash`: product_depth, functionality, code_quality, ux_design, security
 
-### 2. `{stateDir}/round-{round}/feedback-{target}.md`
+### 2. Feedback file
+
+- Dialectic mode: `{stateDir}/round-{round}/feedback-{target}-lead.md`
+- Standard mode: `{stateDir}/round-{round}/feedback-{target}.md`
 
 Detailed findings for the generator to act on:
 - Per-criterion justification with specific test evidence

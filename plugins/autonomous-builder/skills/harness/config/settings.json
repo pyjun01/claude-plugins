@@ -2,6 +2,7 @@
   "maxRounds": 10,
   "scoreThreshold": 7,
   "serverReadyTimeout": 30000,
+  "evaluationMode": "dialectic",
   "executionMode": "auto",
   "techStack": {
     "server": "NestJS + TypeScript",
