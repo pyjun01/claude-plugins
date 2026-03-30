@@ -738,6 +738,8 @@ function cmdNext() {
           path.join(sd, `round-${state.round}`, 'scores.json'), 'utf-8'));
       }
 
+      scoresData.allPassed = allScoresPassed(scoresData.targets, state.config.scoreThreshold);
+
       const history = appendScoreHistory(sd, scoresData, state.targets);
       const decision = strategicDecision(scoresData.targets, history, state.config);
 
