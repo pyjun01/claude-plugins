@@ -105,27 +105,60 @@ Repeat until done:
 
      "EVALUATE ..." (any variant)
        → Parse the `targets=` value (format: name:port:eval,name:port:eval,...)
+       → Read harness.json to check `config.evaluationMode` ("dialectic" or "standard")
        → Read `$CLAUDE_PLUGIN_ROOT/skills/harness/references/evaluator.md`
+       → If dialectic mode: also read `$CLAUDE_PLUGIN_ROOT/skills/harness/references/challenger.md`
 
-       **If Team mode:**
-         → TeamCreate:
-           team_name: "eval-{runId}-r{round}"
-           members: one per target, each with:
-             name: "{targetName}-eval"
-             model: "opus"
-             prompt: {evaluator content} + "\n\nrunId: {runId}\ntarget: {targetName}"
-         → TaskCreate: one task per target (no dependencies — all evaluate in parallel)
-         → Wait for all team members to complete (they share cross-target findings via SendMessage)
-         → TeamDelete
+       **If dialectic mode (config.evaluationMode === "dialectic"):**
 
-       **If Sub-agent mode:**
-         → For EACH target (can be parallel):
-           → Use Agent tool: general-purpose agent, model: opus
-             prompt: {evaluator content} + "\n\nrunId: {runId}\ntarget: {targetName}"
-           → All targets are evaluated with all processes running simultaneously
+         Step 1 — Lead evaluators (parallel, all targets):
 
-       → Each evaluator writes its own scores-{target}.json file.
-         The harness merges them automatically on the next `harness.js next` call.
+           **If Team mode:**
+             → TeamCreate: team_name "eval-lead-{runId}-r{round}"
+               members: one per target, name: "{targetName}-lead"
+               prompt: {evaluator content} + "\n\nrunId: {runId}\ntarget: {targetName}"
+             → TaskCreate: one task per target (no dependencies — all in parallel)
+             → Wait for all to complete → TeamDelete
+
+           **If Sub-agent mode:**
+             → For EACH target (parallel):
+               → Agent tool: prompt: {evaluator content} + "\n\nrunId: {runId}\ntarget: {targetName}"
+
+         Step 2 — Challenger evaluators (parallel, all targets):
+
+           **If Team mode:**
+             → TeamCreate: team_name "eval-challenge-{runId}-r{round}"
+               members: one per target, name: "{targetName}-challenger"
+               prompt: {challenger content} + "\n\nrunId: {runId}\ntarget: {targetName}"
+             → TaskCreate: one task per target (no dependencies — all in parallel)
+             → Wait for all to complete → TeamDelete
+
+           **If Sub-agent mode:**
+             → For EACH target (parallel):
+               → Agent tool: prompt: {challenger content} + "\n\nrunId: {runId}\ntarget: {targetName}"
+
+         → Challengers write the final scores-{target}.json files.
+
+       **If standard mode (config.evaluationMode === "standard"):**
+
+         **If Team mode:**
+           → TeamCreate:
+             team_name: "eval-{runId}-r{round}"
+             members: one per target, each with:
+               name: "{targetName}-eval"
+               model: "opus"
+               prompt: {evaluator content} + "\n\nrunId: {runId}\ntarget: {targetName}"
+           → TaskCreate: one task per target (no dependencies — all evaluate in parallel)
+           → Wait for all team members to complete (they share cross-target findings via SendMessage)
+           → TeamDelete
+
+         **If Sub-agent mode:**
+           → For EACH target (can be parallel):
+             → Use Agent tool: general-purpose agent, model: opus
+               prompt: {evaluator content} + "\n\nrunId: {runId}\ntarget: {targetName}"
+             → All targets are evaluated with all processes running simultaneously
+
+       → The harness merges scores-{target}.json files automatically on the next `harness.js next` call.
 
        → Ignore all agent responses entirely
 
