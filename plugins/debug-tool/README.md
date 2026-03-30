@@ -30,6 +30,22 @@ Export the current Claude Code session as a shareable zip file.
 claude plugin add --source ./plugins/debug-tool
 ```
 
+## Quick Start: User-Level Skill Only
+
+If you just want the `export-session` skill without installing the full plugin, you can add it directly to your user-level skills:
+
+**macOS / Linux:**
+
+```bash
+mkdir -p ~/.claude/skills/export-session && curl -fsSL "https://raw.githubusercontent.com/pyjun01/claude-plugins/refs/heads/master/plugins/debug-tool/skills/export-session/SKILL.md" -o ~/.claude/skills/export-session/SKILL.md
+```
+
+**Windows (PowerShell):**
+
+```powershell
+New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.claude\skills\export-session" | Out-Null; Invoke-WebRequest -Uri "https://raw.githubusercontent.com/pyjun01/claude-plugins/refs/heads/master/plugins/debug-tool/skills/export-session/SKILL.md" -OutFile "$env:USERPROFILE\.claude\skills\export-session\SKILL.md"
+```
+
 ## Author
 
 - **Name:** pyjun01
